@@ -1,10 +1,13 @@
 import numpy as np
 import os
-from .python_wrapper import CFunctionWrapper  # Use absolute import
+from python_wrapper import CFunctionWrapper  # Use absolute import
 
-# Print the files in the current directory
-print("Files in the current directory:")
-print(os.listdir(os.path.dirname(__file__)))
+# Get the absolute path to the shared library
+current_dir = os.path.dirname(os.path.abspath(__file__))
+library_path = os.path.join(current_dir, "C_functions.so")
 
-# Initialize the wrapper
-wrapper = CFunctionWrapper("C_functions.so")
+# Print the absolute path for debugging
+print(f"Using library path: {library_path}")
+
+# Initialize the wrapper with the absolute path
+wrapper = CFunctionWrapper(library_path)
