@@ -2,7 +2,7 @@ import numpy as np
 import ctypes
 
 class CFunctionWrapper:
-    def __init__(self, library_path="C_functions.so"):
+    def __init__(self, library_path="src/c_class/C_functions.so"):
         """
         Initialize the wrapper by loading the C library.
         """

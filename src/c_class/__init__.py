@@ -1,1 +1,1 @@
-from .
+from .python_wrapper import CFunctionWrapper
