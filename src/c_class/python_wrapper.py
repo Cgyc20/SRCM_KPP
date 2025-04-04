@@ -70,6 +70,18 @@ class CFunctionWrapper:
     
 
     def approximate_mass_left_hand(self, SSA_M, PDE_multiple, PDE_list, deltax):
+        """
+        Computes the approximate PDE mass at each SSA compartment (left-hand weighted sum).
+        
+        Parameters:
+            SSA_M (int): Number of SSA compartments.
+            PDE_multiple (int): Number of PDE points per SSA compartment.
+            PDE_list (array-like): Values of the PDE grid.
+            deltax (float): Spatial discretization step size.
+
+        Returns:
+            np.ndarray: Approximate PDE mass in each SSA compartment.
+        """
         approximate_PDE_mass = np.zeros(SSA_M, dtype=np.float32)
         PDE_list = np.array(PDE_list, dtype=np.float32)
 
@@ -84,6 +96,23 @@ class CFunctionWrapper:
         return approximate_PDE_mass
 
     def calculate_total_mass(self, PDE_list, SSA_list, PDE_multiple, deltax, SSA_M):
+        """
+        Computes the total combined mass of PDE and SSA at each SSA compartment.
+
+        Parameters:
+            PDE_list (array-like): PDE values across the domain.
+            SSA_list (array-like): SSA values per compartment.
+            PDE_multiple (int): Number of PDE grid points per SSA compartment.
+            deltax (float): Spatial step.
+            SSA_M (int): Number of SSA compartments.
+
+        Returns:
+            tuple:
+                combined_list (np.ndarray): Total mass per compartment (PDE + SSA).
+                approximate_PDE_mass (np.ndarray): The approximate PDE mass component.
+        """
+
+
         PDE_list = np.array(PDE_list, dtype=np.float32)
         SSA_list = np.array(SSA_list, dtype=np.int32)
 
@@ -93,6 +122,22 @@ class CFunctionWrapper:
         return combined_list, approximate_PDE_mass
 
     def boolean_mass(self, SSA_m, PDE_m, PDE_multiple, PDE_list, h):
+        """
+        Computes boolean masks (0 or 1) for where there is significant PDE and SSA mass.
+
+        Parameters:
+            SSA_m (int): Number of SSA compartments.
+            PDE_m (int): Number of PDE points.
+            PDE_multiple (int): PDE points per SSA compartment.
+            PDE_list (array-like): PDE concentration values.
+            h (float): Grid size or thresholding parameter.
+
+        Returns:
+            tuple:
+                boolean_PDE_list (np.ndarray): Mask for PDE domain.
+                boolean_SSA_list (np.ndarray): Mask for SSA compartments.
+        """
+
         PDE_list = np.array(PDE_list, dtype=np.float32)
         boolean_PDE_list = np.zeros(PDE_m, dtype=np.int32)
         boolean_SSA_list = np.zeros(SSA_m, dtype=np.int32)
@@ -110,6 +155,22 @@ class CFunctionWrapper:
         return boolean_PDE_list, boolean_SSA_list
 
     def boolean_threshold_mass(self, SSA_m, PDE_m, PDE_multiple, combined_list, h, threshold):
+        """
+        Computes boolean masks based on a threshold for total (PDE + SSA) mass.
+
+        Parameters:
+            SSA_m (int): Number of SSA compartments.
+            PDE_m (int): Number of PDE points.
+            PDE_multiple (int): PDE points per SSA compartment.
+            combined_list (array-like): Combined SSA and PDE mass values.
+            h (float): Grid size.
+            threshold (float): Minimum mass threshold to consider "significant".
+
+        Returns:
+            tuple:
+                compartment_bool_list (np.ndarray): Mask for SSA compartments.
+                PDE_bool_list (np.ndarray): Mask for PDE domain.
+        """
         combined_list = np.array(combined_list, dtype=np.float32)
         compartment_bool_list = np.zeros(SSA_m, dtype=np.int32)
         PDE_bool_list = np.zeros(PDE_m, dtype=np.int32)
@@ -128,6 +189,19 @@ class CFunctionWrapper:
         return compartment_bool_list, PDE_bool_list
 
     def fine_grid_ssa_mass(self, SSA_mass, PDE_grid_length, SSA_m, PDE_multiple, h):
+        """
+        Spreads SSA mass from coarse compartments into a fine PDE grid representation.
+
+        Parameters:
+            SSA_mass (array-like): SSA values per compartment.
+            PDE_grid_length (int): Total length of the PDE grid.
+            SSA_m (int): Number of SSA compartments.
+            PDE_multiple (int): PDE points per SSA compartment.
+            h (float): Grid spacing.
+
+        Returns:
+            np.ndarray: Fine-grained representation of SSA mass on PDE grid.
+        """
         SSA_mass = np.array(SSA_mass, dtype=np.int32)
         fine_SSA_Mass = np.zeros(PDE_grid_length, dtype=np.float32)
 
@@ -143,6 +217,27 @@ class CFunctionWrapper:
         return fine_SSA_Mass
 
     def calculate_propensity(self, SSA_M, PDE_list, SSA_list, degradation_rate_h, threshold, production_rate, gamma, jump_rate):
+        """
+        Computes the reaction propensities in each SSA compartment, using PDE influence and other parameters.
+
+        Parameters:
+            SSA_M (int): Number of SSA compartments.
+            PDE_list (array-like): PDE values.
+            SSA_list (array-like): SSA values.
+            degradation_rate_h (float): Degradation rate (scaled by h).
+            threshold (float): Activation threshold.
+            production_rate (float): Rate of production.
+            gamma (float): Nonlinear scaling or interaction parameter.
+            jump_rate (float): Rate of stochastic jumps.
+
+        Returns:
+            dict: Contains:
+                - 'propensity_list' (np.ndarray): Propensity values.
+                - 'boolean_SSA_list' (np.ndarray): Active SSA compartments.
+                - 'combined_mass_list' (np.ndarray): Combined mass at each compartment.
+                - 'approximate_PDE_mass' (np.ndarray): PDE contribution.
+                - 'boolean_mass_list' (np.ndarray): Boolean mask where mass is present.
+        """
         PDE_list = np.array(PDE_list, dtype=np.float32)
         SSA_list = np.array(SSA_list, dtype=np.int32)
         propensity_list = np.zeros(SSA_M, dtype=np.float32)
