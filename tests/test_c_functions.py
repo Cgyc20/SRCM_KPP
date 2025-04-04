@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from src.c_class.python_wrapper import CFunctionWrapper  # Adjust if needed
+from src.c_class import CFunctionWrapper  # Adjust the import based on your project structure
 
 # Fixture to create the wrapper once
 @pytest.fixture(scope="module")
