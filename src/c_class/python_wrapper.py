@@ -63,6 +63,12 @@ class CFunctionWrapper:
             ctypes.c_float  # jump_rate
         ]
 
+        print(f"Loaded C library from {library_path}")
+
+    def __str__(self):
+        return f"CFunctionWrapper(library_path={self.lib._name}) for the Hybrid method"
+    
+
     def approximate_mass_left_hand(self, SSA_M, PDE_multiple, PDE_list, deltax):
         approximate_PDE_mass = np.zeros(SSA_M, dtype=np.float32)
         PDE_list = np.array(PDE_list, dtype=np.float32)
