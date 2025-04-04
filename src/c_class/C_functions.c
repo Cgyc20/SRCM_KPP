@@ -1,139 +1,120 @@
 #include <stdio.h>
 
-
-
+// Approximate the PDE mass over each SSA compartment using the left-hand rule
 void ApproximateMassLeftHand(int SSA_M, int PDE_multiple, float *PDE_list, float *approxMass, float deltax) {
-    // Works out the approximate mass of the PDE domain over each grid point using the left-hand rule
     int start_index, end_index;
     float sum_value;
 
-    // Iterate over each compartment
     for (int i = 0; i < SSA_M; i++) {
-        start_index = PDE_multiple * i;  // Start index for this compartment
-        end_index = PDE_multiple * (i + 1);  // End index for this compartment
-        sum_value = 0.0;  // Initialize sum for the current compartment
+        start_index = PDE_multiple * i;           // First PDE index in current SSA compartment
+        end_index = PDE_multiple * (i + 1);       // One-past-the-last PDE index for this SSA compartment
+        sum_value = 0.0;                          // Reset sum for this compartment
 
-        // Sum the PDE values over the range corresponding to this compartment
-        for (int j = start_index; j < end_index; j++) {  // Sum over the range
-            sum_value += PDE_list[j];  // Add the value at each grid point
+        for (int j = start_index; j < end_index; j++) {
+            sum_value += PDE_list[j];             // Accumulate PDE values within the compartment
         }
 
-        // Multiply by the step size (deltax) and store the result
-        approxMass[i] = sum_value * deltax;  
+        approxMass[i] = sum_value * deltax;       // Multiply by grid spacing to approximate mass
     }
 }
 
-
-
+// Create boolean masks for SSA and PDE domains based on mass threshold
 void BooleanMass(int SSA_m, int PDE_m, int PDE_multiple, float *PDE_list, int *boolean_PDE_list, int *boolean_SSA_list, float h) {
-    // This will create boolean lists based on PDE and SSA conditions
     int start_index;
     int BOOL_value;
     int current_index;
 
-    // Create the boolean_PDE_list based on the condition PDE_list[i] > 1/h
-    for (int i = 0; i < PDE_m; i++) {  // Use `< PDE_m` to avoid out-of-bounds
-        if (PDE_list[i] > 1 / h) {
-            boolean_PDE_list[i] = 1;
-        } else {
-            boolean_PDE_list[i] = 0;
-        }
+    for (int i = 0; i < PDE_m; i++) {
+        boolean_PDE_list[i] = (PDE_list[i] > 1 / h) ? 1 : 0;  // Mark 1 if PDE mass at i > 1/h
     }
 
-    // Create the boolean_SSA_list based on boolean_PDE_list
-    for (int i = 0; i < SSA_m; i++) {  // Use `< SSA_m` to avoid out-of-bounds
-        start_index = i * PDE_multiple;
-        BOOL_value = 1; // Default to 1 (true)
+    for (int i = 0; i < SSA_m; i++) {
+        start_index = i * PDE_multiple;          // Start index of PDEs for this SSA block
+        BOOL_value = 1;                          // Start with 1, set to 0 if any false in range
 
-        for (int j = 0; j < PDE_multiple; j++) {  // Iterate through the block of PDE_multiple
+        for (int j = 0; j < PDE_multiple; j++) {
             current_index = start_index + j;
-
-            // Ensure we do not access out-of-bounds in boolean_PDE_list
             if (current_index >= PDE_m || boolean_PDE_list[current_index] == 0) {
-                BOOL_value = 0; // If any element is 0, the SSA block is 0
-                break;          // Break early for efficiency
+                BOOL_value = 0;                  // If any value in PDE block is false, set whole SSA block false
+                break;
             }
         }
 
-        boolean_SSA_list[i] = BOOL_value; // Assign the result to the SSA list
+        boolean_SSA_list[i] = BOOL_value;        // Assign result for this SSA compartment
     }
 }
 
-
-void BooleanThresholdMass(int SSA_m, int PDE_m, int PDE_multiple, float *combined_list,  float h, int *compartment_bool_list, int *PDE_bool_list, float threshold){
-    
-    // working out whether the mass is above or below threshold within each compartment.
-    for (int i=0; i<SSA_m; i++){ //here we check if the combined list is above or below threshold.
-        compartment_bool_list[i] = (combined_list[i]>threshold) ? 0:1; //if greater we assign zero, else we assign 1
+// Determine whether each compartment and its PDE elements are below a threshold
+void BooleanThresholdMass(int SSA_m, int PDE_m, int PDE_multiple, float *combined_list, float h, int *compartment_bool_list, int *PDE_bool_list, float threshold) {
+    for (int i = 0; i < SSA_m; i++) {
+        compartment_bool_list[i] = (combined_list[i] > threshold) ? 0 : 1;  // 1 if below threshold, else 0
     }
-    for (int i=0; i<SSA_m; i++){
-        int value = compartment_bool_list[i];
-        int new_value = (value == 0) ? 1:0; //if the value is 0 then we define this as 1, and vice versa
-        int start_index = i*PDE_multiple; // we define the start index within the PDE model
-        for (int j=0; j<PDE_multiple; i++){ 
-            PDE_bool_list[start_index+j] = new_value; // we set all the PDE points in corresponding compartment to be opposite sign
+
+    for (int i = 0; i < SSA_m; i++) {
+        int value = compartment_bool_list[i];                 // Boolean flag for this compartment
+        int new_value = (value == 0) ? 1 : 0;                 // Invert value
+        int start_index = i * PDE_multiple;                   // Start index of PDE sub-block
+
+        for (int j = 0; j < PDE_multiple; j++) {
+            PDE_bool_list[start_index + j] = new_value;       // Apply inverted value to each PDE point
         }
     }
 }
 
-void FineGridSSAMass(int *SSA_mass, int PDE_grid_length, int SSA_m, int PDE_multiple, float h, float *fine_SSA_Mass){
-    // this will convert the SSA mass into the same PDE discretisation
+// Upsample SSA mass to PDE grid for combined dynamics
+void FineGridSSAMass(int *SSA_mass, int PDE_grid_length, int SSA_m, int PDE_multiple, float h, float *fine_SSA_Mass) {
+    for (int i = 0; i < SSA_m; i++) {
+        int start_index = i * PDE_multiple;
 
-    for (int i=0; i<SSA_m;i++){
-        int start_index = i*PDE_multiple;
-        for (int j=0; j<PDE_multiple;j++){
-            fine_SSA_Mass[start_index+j] = (float)SSA_mass[i]/h;
+        for (int j = 0; j < PDE_multiple; j++) {
+            fine_SSA_Mass[start_index + j] = (float)SSA_mass[i] / h;  // Distribute SSA mass evenly across PDE block
         }
     }
 }
 
-// Function to calculate the propensities
-
-
+// Compute all reaction/diffusion propensities for SSA compartments
 void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *propensity_list, 
                          int *boolean_SSA_list, float *combined_mass_list, 
                          float *Approximate_PDE_Mass, int *boolean_mass_list, 
                          float degradation_rate_h, float threshold, 
                          float production_rate, float gamma, float jump_rate) {
     
-    // Precompute commonly used values
     int two_SSA_M = 2 * SSA_M;
     int three_SSA_M = 3 * SSA_M;
     int four_SSA_M = 4 * SSA_M;
     int five_SSA_M = 5 * SSA_M;
     int six_SSA_M = 6 * SSA_M;
 
-    // Initialize all propensity values to zero
     for (int i = 0; i < six_SSA_M; i++) {
-        propensity_list[i] = 0.0f;
+        propensity_list[i] = 0.0f;  // Clear all propensity values before computing
     }
 
-    // 1. Diffusion Propensities (Boundary Conditions)
-    propensity_list[0] = jump_rate * SSA_list[0];
+    // 1. Diffusion (D → D shift)
+    propensity_list[0] = jump_rate * SSA_list[0];  // Left boundary
     for (int i = 1; i < SSA_M - 1; i++) {
-        propensity_list[i] = 2.0f * jump_rate * SSA_list[i];
+        propensity_list[i] = 2.0f * jump_rate * SSA_list[i];  // Middle compartments
     }
-    propensity_list[SSA_M - 1] = jump_rate * SSA_list[SSA_M - 1];
+    propensity_list[SSA_M - 1] = jump_rate * SSA_list[SSA_M - 1];  // Right boundary
 
-    // 2. Production Rates (D → 2D)
+    // 2. Production (D → 2D)
     for (int i = SSA_M; i < two_SSA_M; i++) {
         int index = i - SSA_M;
-        propensity_list[i] = production_rate * combined_mass_list[index] * boolean_SSA_list[index];
+        propensity_list[i] = production_rate * combined_mass_list[index] * boolean_SSA_list[index];  // If SSA is “active”
     }
 
-    // 3. First Degradation: D + D → D
+    // 3. Degradation: D + D → D (self-degradation)
     for (int i = two_SSA_M; i < three_SSA_M; i++) {
         int index = i - two_SSA_M;
-        propensity_list[i] = degradation_rate_h * SSA_list[index] * (SSA_list[index] - 1);
+        propensity_list[i] = degradation_rate_h * SSA_list[index] * (SSA_list[index] - 1);  // Quadratic in particle count
     }
 
-    // 4. Second Degradation: D + C → C (Fixed missing factor of 2.0f)
+    // 4. Degradation: D + C → C (heterogeneous)
     for (int i = three_SSA_M; i < four_SSA_M; i++) {
         int index = i - three_SSA_M;
-        propensity_list[i] = 2.0f * degradation_rate_h * SSA_list[index] * Approximate_PDE_Mass[index];
+        propensity_list[i] = 2.0f * degradation_rate_h * SSA_list[index] * Approximate_PDE_Mass[index];  // Interaction with PDE domain
     }
 
-    // 5. Conversion from Continuous to Discrete (Below Threshold)
+    // 5. Conversion C → D (only when below threshold)
     for (int i = four_SSA_M; i < five_SSA_M; i++) {
         int index = i - four_SSA_M;
         float combined_mass = combined_mass_list[index];
@@ -141,18 +122,18 @@ void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *prope
         int boolean_mass = boolean_mass_list[index];
 
         propensity_list[i] = (combined_mass < threshold) 
-                              ? gamma * approx_mass * boolean_mass 
+                              ? gamma * approx_mass * boolean_mass     // Conversion only allowed below threshold
                               : 0.0f;
     }
 
-    // 6. Conversion from Discrete to Continuous (Above Threshold)
+    // 6. Conversion D → C (only when above threshold)
     for (int i = five_SSA_M; i < six_SSA_M; i++) {
         int index = i - five_SSA_M;
         float combined_mass = combined_mass_list[index];
         int SSA_mass = SSA_list[index];
 
         propensity_list[i] = (combined_mass >= threshold) 
-                              ? gamma * SSA_mass 
+                              ? gamma * SSA_mass                       // Conversion only allowed above threshold
                               : 0.0f;
     }
 }
