@@ -4,55 +4,80 @@ from src.c_class import CFunctionWrapper  # Adjust the import based on your proj
 
 # Fixture to create the wrapper once
 @pytest.fixture(scope="module")
-def wrapper():
-    return CFunctionWrapper("src/c_class/C_functions.so")
+def test_data():
+    """Provide consistent test inputs and params."""
+    params = {
+        "SSA_M": 3,
+        "PDE_multiple": 4,
+        "deltax": 0.1,
+        "h": 0.1,
+        "threshold": 0.5,
+        "production_rate": 1.0,
+        "degradation_rate_h": 0.1,
+        "jump_rate": 0.05,
+        "gamma": 2.0
+    }
+    return {"params": params}
 
+@pytest.fixture(scope="module")
+def wrapper(test_data):
+    """Create the CFunctionWrapper instance using the provided params."""
+    return CFunctionWrapper(params=test_data["params"], library_path="src/c_class/C_functions.so")
 
 
 def test_fine_mass_1(wrapper):
-    """Test number 1 is gonna be checking inputs and outputs is correct dtype."""
+    """
+    Test the `fine_grid_ssa_mass` method to ensure the output is of the correct dtype.
 
-    SSA_mass = [10, 20, 30]        # 3 SSA compartments
-    SSA_m = 3                      # number of SSA compartments
-    PDE_multiple = 4               # each SSA maps to 4 PDE points
-    PDE_grid_length = SSA_m * PDE_multiple
-    h = 1.0                        # grid spacing
+    This test checks that the method returns a NumPy array.
+    """
+    SSA_mass = np.array([10, 20, 30], dtype=np.int32)  # 3 SSA compartments
 
-    # Run the function
-    fine_mass_output = wrapper.fine_grid_ssa_mass(SSA_mass, PDE_grid_length, SSA_m, PDE_multiple, h)
+    # Call the method
+    fine_mass_output = wrapper.fine_grid_ssa_mass(SSA_mass)
 
-    assert isinstance(fine_mass_output,np.ndarray)
+    # Assert the output is a NumPy array
+    assert isinstance(fine_mass_output, np.ndarray)
 
 
 def test_fine_mass_2(wrapper):
-    """Tests if correct length wanted"""
-    SSA_mass = [10, 20, 30]        # 3 SSA compartments
-    SSA_m = 3                      # number of SSA compartments
-    PDE_multiple = 4               # each SSA maps to 4 PDE points
-    PDE_grid_length = SSA_m * PDE_multiple
-    h = 1.0                        # grid spacing
+    """
+    Test the `fine_grid_ssa_mass` method to ensure the output has the correct length.
 
-    # Run the function
-    fine_mass_output = wrapper.fine_grid_ssa_mass(SSA_mass, PDE_grid_length, SSA_m, PDE_multiple, h)
+    This test checks that the length of the output matches the expected PDE grid length.
+    """
+    SSA_mass = np.array([10, 20, 30], dtype=np.int32)  # 3 SSA compartments
+    SSA_M = wrapper.SSA_M
+    PDE_multiple = wrapper.PDE_multiple
 
-    assert len(fine_mass_output)==SSA_m*PDE_multiple #Test is correct length 
+    # Call the method
+    fine_mass_output = wrapper.fine_grid_ssa_mass(SSA_mass)
+
+    # Assert the output length matches SSA_M * PDE_multiple
+    assert len(fine_mass_output) == SSA_M * PDE_multiple
 
 
 def test_fine_mass_3(wrapper):
-    """Test if the output is correct"""
+    """
+    Test the `fine_grid_ssa_mass` method for correct computation of the fine grid mass.
 
+    This test checks that the output matches the expected fine grid mass distribution.
+    """
+    SSA_mass = np.array([10, 20, 30], dtype=np.int32)  # 3 SSA compartments
+    SSA_M = wrapper.SSA_M
+    PDE_multiple = wrapper.PDE_multiple
+    h = wrapper.h
 
-    SSA_mass = [10, 20, 30]        # 3 SSA compartments
-    SSA_m = 3                      # number of SSA compartments
-    PDE_multiple = 4               # each SSA maps to 4 PDE points
-    PDE_grid_length = SSA_m * PDE_multiple
-    h = 0.1                        # grid spacing
+    # Call the method
+    fine_mass_output = wrapper.fine_grid_ssa_mass(SSA_mass)
 
-    # Run the function
-    fine_mass_output = wrapper.fine_grid_ssa_mass(SSA_mass, PDE_grid_length, SSA_m, PDE_multiple, h)
-    #The wquery fine mass is going to be the following:
-    fine_mass_query = np.array([100, 100, 100, 100, 200, 200, 200, 200, 300, 300, 300, 300], dtype=np.float32) #This is the expected output
+    # Expected fine mass output
+    fine_mass_query = np.array(
+        [10 / h] * PDE_multiple +
+        [20 / h] * PDE_multiple +
+        [30 / h] * PDE_multiple,
+        dtype=np.float32
+    )
 
-    assert np.array_equal(fine_mass_output, fine_mass_query) #Check if the output is correct
-
-
+    # Assert the output matches the expected fine grid mass
+    assert np.array_equal(fine_mass_output, fine_mass_query)
