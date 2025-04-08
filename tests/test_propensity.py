@@ -13,7 +13,6 @@ def test_data():
     PDE_list = np.array([1.2, 1.4, 0.4, 0.5, 0.6, 0.8, 0.1, 0.8, 1.0, 1.2], dtype=np.float32)
     SSA_list = np.array([100, 1, 2, 1, 3], dtype=np.int32)
     degradation_rate_h = 0.1
-    PDE_M = 10
     PDE_multiple = 2
     threshold = 0.5
     production_rate = 1.0
@@ -23,7 +22,6 @@ def test_data():
     deltax = 0.1
     return {
         "SSA_M": SSA_M,
-        "PDE_M": PDE_M,
         "PDE_multiple": PDE_multiple,
         "PDE_list": PDE_list,
         "SSA_list": SSA_list,
