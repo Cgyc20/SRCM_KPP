@@ -104,6 +104,7 @@ class CFunctionWrapper:
         approximate_PDE_mass = self.approximate_mass_left_hand(PDE_list)
         combined_list = np.add(SSA_list, approximate_PDE_mass)
 
+        combined_list = np.array(combined_list, dtype=np.float32)
         return combined_list, approximate_PDE_mass
 
     def boolean_low_limit(self, PDE_list):
