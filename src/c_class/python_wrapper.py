@@ -82,8 +82,8 @@ class CFunctionWrapper:
         Returns:
             np.ndarray: Approximate PDE mass in each SSA compartment.
         """
-        approximate_PDE_mass = np.zeros(SSA_M, dtype=np.float32)
-        PDE_list = np.array(PDE_list, dtype=np.float32)
+        approximate_PDE_mass = np.zeros(SSA_M, dtype=np.float32) #set the approximate mass to be zero
+        PDE_list = np.array(PDE_list, dtype=np.float32) #Convert to np.float32
 
         self.lib.ApproximateMassLeftHand(
             ctypes.c_int(SSA_M),
@@ -116,14 +116,14 @@ class CFunctionWrapper:
         PDE_list = np.array(PDE_list, dtype=np.float32)
         SSA_list = np.array(SSA_list, dtype=np.int32)
 
-        approximate_PDE_mass = self.approximate_mass_left_hand(SSA_M, PDE_multiple, PDE_list, deltax)
-        combined_list = np.add(SSA_list, approximate_PDE_mass)
+        approximate_PDE_mass = self.approximate_mass_left_hand(SSA_M, PDE_multiple, PDE_list, deltax) #THe left hand rule on the finer PDE domain, to be on same grid as the SSA compartmental method.
+        combined_list = np.add(SSA_list, approximate_PDE_mass) #add them together
 
         return combined_list, approximate_PDE_mass
 
-    def boolean_mass(self, SSA_m, PDE_m, PDE_multiple, PDE_list, h):
+    def boolean_low_limit(self, SSA_m, PDE_multiple, PDE_list, h):
         """
-        Computes boolean masks (0 or 1) for where there is significant PDE and SSA mass.
+        Computes boolean masks (0 or 1) for where there is significant PDE and SSA mass. If the PDE mass is below 1/h then conversion cannot occur and gives a zero value.
 
         Parameters:
             SSA_m (int): Number of SSA compartments.
@@ -139,12 +139,15 @@ class CFunctionWrapper:
         """
 
         PDE_list = np.array(PDE_list, dtype=np.float32)
-        boolean_PDE_list = np.zeros(PDE_m, dtype=np.int32)
+        PDE_length = SSA_m*PDE_multiple
+        assert len(PDE_list) == PDE_length, f"Not the right length"
+
+        boolean_PDE_list = np.zeros(SSA_m*PDE_multiple, dtype=np.int32)
         boolean_SSA_list = np.zeros(SSA_m, dtype=np.int32)
 
         self.lib.BooleanMass(
             ctypes.c_int(SSA_m),
-            ctypes.c_int(PDE_m),
+            ctypes.c_int(PDE_length),
             ctypes.c_int(PDE_multiple),
             PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             boolean_PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
