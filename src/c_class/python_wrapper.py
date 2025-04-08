@@ -134,8 +134,8 @@ class CFunctionWrapper:
 
         Returns:
             tuple:
-                boolean_PDE_list (np.ndarray): Mask for PDE domain.
-                boolean_SSA_list (np.ndarray): Mask for SSA compartments.
+                boolean_PDE_list (np.ndarray): Mask for PDE domain. This is same length as PDE, 0 if the mass is below 1/h otherwise 1.
+                boolean_SSA_list (np.ndarray): Mask for SSA compartments. If any of the PDE bool value is zero within the compartment then this will also be zero in the SSA_compartment.
         """
 
         PDE_list = np.array(PDE_list, dtype=np.float32)
@@ -171,8 +171,8 @@ class CFunctionWrapper:
 
         Returns:
             tuple:
-                compartment_bool_list (np.ndarray): Mask for SSA compartments.
-                PDE_bool_list (np.ndarray): Mask for PDE domain.
+                compartment_bool_list (np.ndarray): Mask for SSA compartments. If the combined mass is greater than the threshold then bool value is 1, else 0.
+                PDE_bool_list (np.ndarray): Mask for PDE domain. If the combined mass is greater in that associated compartment then bool value is 0, otherwise 1.
         """
         combined_list = np.array(combined_list, dtype=np.float32)
         compartment_bool_list = np.zeros(SSA_m, dtype=np.int32)
