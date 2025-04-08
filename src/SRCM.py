@@ -68,103 +68,19 @@ class Hybrid:
         self.CFunctions = CFunctionWrapper(Cfunctions_params)
     
         self.NumericalClass = Numerical_wrapper(Numerical_params)
-        
+
 
         print("Successfully initialized the hybrid model")
         print(f"The threshold concentration is: {self.threshold_conc}")
 
-    def create_finite_difference(self) -> np.ndarray:
-        self.DX = np.zeros((self.PDE_M, self.PDE_M), dtype=int)
-        self.DX[0, 0], self.DX[-1, -1] = -1, -1
-        self.DX[0, 1], self.DX[-1, -2] = 1, 1
-        for i in range(1, self.DX.shape[0] - 1):
-            self.DX[i, i] = -2
-            self.DX[i, (i + 1)] = 1
-            self.DX[i, (i - 1)] = 1
-        return self.DX
-    
     def create_initial_dataframe(self) -> np.ndarray:
         SSA_grid = np.zeros((self.SSA_M, len(self.time_vector)), dtype=int)
         SSA_grid[:, 0] = self.SSA_initial
         PDE_grid = np.zeros((self.PDE_M, len(self.time_vector)), dtype=float)
         PDE_grid[:, 0] = self.PDE_initial_conditions
         return PDE_grid, SSA_grid 
+
     
-    def calculate_total_mass(self, PDE_list: np.ndarray, SSA_list: np.ndarray) -> np.ndarray:
-        """This will calculate the total mass of discrete + continuous"""
-        
-        #We will use c functions here
-
-        return self.CFunctions.calculate_total_mass(PDE_list, SSA_list, self.PDE_multiple, self.deltax, self.SSA_M)
-      
-    def threshold_boolean(self, combined_list: np.ndarray) -> np.ndarray:
-        """Generate a boolean list based on the threshold"""
-        #We also use c functions here
-
-        compartment_bool_list, PDE_bool_list =  self.CFunctions.boolean_threshold_mass(self.SSA_M, self.PDE_multiple, combined_list, self.h, self.threshold)
-
-        return compartment_bool_list, PDE_bool_list
-
-    def boolean_if_less_mass(self, PDE_list: np.ndarray) -> np.ndarray: 
-        # we use c functions here too.
-        return self.CFunctions.boolean_low_limit(self.SSA_M, self.PDE_multiple, PDE_list, self.h)
-        
-
-
-    def RHS_derivative(self, old_vector, boolean_threshold, SSA_fine_mass):
-
-        #Convert this to c function
-        nabla = self.DX_NEW
-        diff_coeff = self.diffusion_rate * (1 / self.deltax) ** 2
-
-        # Precompute terms
-        diffusion_term = diff_coeff * (nabla @ old_vector)
-        degradation_term = self.degradation_rate * boolean_threshold*((old_vector+SSA_fine_mass) ** 2)
-        production_term = self.production_rate * boolean_threshold * (old_vector + SSA_fine_mass)
-        degradation_term = self.degradation_rate * (old_vector) ** 2
-        # Combine all terms
-        dudt = diffusion_term - degradation_term + production_term
-
-        return dudt
-
-    def fine_grid_SSA_mass(self, SSA_mass):
-        """Convert the SSA_mass to the same fine resolution as the PDE"""
-        return self.CFunctions.fine_grid_ssa_mass(SSA_mass, self.PDE_M, self.SSA_M, )
-    
-    def RK4(self, old_vector, boolean_threshold, SSA_fine_mass, dt=None):
-
-        if dt == None:
-            dt = self.timestep
-        
-        k1 = self.RHS_derivative(old_vector, boolean_threshold, SSA_fine_mass)
-        k2 = self.RHS_derivative(old_vector + 0.5 * dt * k1, boolean_threshold, SSA_fine_mass)
-        k3 = self.RHS_derivative(old_vector + 0.5 * dt * k2, boolean_threshold, SSA_fine_mass)
-        k4 = self.RHS_derivative(old_vector + dt * k3, boolean_threshold, SSA_fine_mass)
-        return old_vector + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
-    
-
-
-
-    def check_negative_values(self, vector: np.ndarray, vector_name: str):
-        """
-        Checks if a vector has negative values and raises an error if any are found.
-
-        Args:
-            vector (np.ndarray): The input vector to check.
-            vector_name (str): The name of the vector (for error message context).
-
-        Raises:
-            ValueError: If the vector contains negative values below the machine error threshold.
-        """
-        machine_error = 10e-5
-        negative_indices = np.where(vector < -machine_error)[0]
-        if negative_indices.size > 0:
-            print(f"Negative values found at indices: {negative_indices}")
-            print(vector)
-            raise ValueError(f"The vector named '{vector_name}' has negative values.")
-        return None
-
- 
 
     def hybrid_simulation(self, SSA_grid: np.ndarray, PDE_grid: np.ndarray, approx_mass: np.ndarray) -> np.ndarray:
         t = 0
@@ -175,9 +91,7 @@ class Hybrid:
         PDE_list = PDE_grid[:, 0].astype(float)
         ind_after = 0
 
-        # Arrays to track SSA events and PDE updates
-        SSA_events_log = []  # Format: (time, compartment_index, reaction_type)
-        PDE_update_times = []  # List of times when PDE is updated
+
 
         while t < self.total_time:
             #total_propensity = self.propensity_calculation(SSA_list, PDE_list)
@@ -190,7 +104,7 @@ class Hybrid:
             alpha0 = np.sum(total_propensity)
             if alpha0 == 0:
                 PDE_list = self.RK4(PDE_list, PDE_boolean_threshold, fine_SSA_mass)
-                PDE_update_times.append(t)
+              
 
                 t = copy(td)
                 td += self.timestep
@@ -202,7 +116,6 @@ class Hybrid:
                     self.check_negative_values(PDE_list, "PDE_list")
                     self.check_negative_values(SSA_list, "SSA_list")
                     approx_mass[:, time_index], PDE_particles[:, time_index] = self.calculate_total_mass(PDE_list, SSA_list)
-
                 old_time = t
                 continue
 
@@ -250,8 +163,7 @@ class Hybrid:
                     SSA_list[compartment_index] -= 1  # D -> C
                     PDE_list[self.PDE_multiple * compartment_index: self.PDE_multiple * (compartment_index + 1)] += 1 / self.h
                     reaction_type = "conversion_D_to_C"
-                
-                SSA_events_log.append((t, compartment_index, reaction_type))
+      
 
                 # PDE_list = self.RK4(PDE_list, PDE_boolean_threshold, fine_SSA_mass,tau)
                 t += tau
@@ -260,7 +172,7 @@ class Hybrid:
 
             else:
                 PDE_list = self.RK4(PDE_list, PDE_boolean_threshold, fine_SSA_mass)
-                PDE_update_times.append(t)
+
 
                 t = copy(td)
                 td += self.timestep
@@ -277,7 +189,7 @@ class Hybrid:
 
                 old_time = t
 
-        return SSA_grid, PDE_grid, approx_mass, SSA_events_log, PDE_update_times
+        return SSA_grid, PDE_grid, approx_mass
 
     def run_simulation(self, number_of_repeats: int) -> np.ndarray:
         PDE_initial, SSA_initial = self.create_initial_dataframe()
