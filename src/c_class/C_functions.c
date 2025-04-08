@@ -78,7 +78,19 @@ void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *prope
                          float *Approximate_PDE_Mass, int *boolean_mass_list, 
                          float degradation_rate_h, float threshold, 
                          float production_rate, float gamma, float jump_rate) {
-    
+
+    if (!PDE_list || !SSA_list || !propensity_list || !boolean_SSA_list || 
+        !combined_mass_list || !Approximate_PDE_Mass || !boolean_mass_list) {
+        fprintf(stderr, "Error: Null pointer passed to CalculatePropensity\n");
+        return;
+    }
+
+    printf("Entering CalculatePropensity with SSA_M=%d\n", SSA_M);
+    printf("Pointer addresses:\n");
+    printf("PDE_list: %p\n", (void*)PDE_list);
+    printf("SSA_list: %p\n", (void*)SSA_list);
+    printf("propensity_list: %p\n", (void*)propensity_list);        
+
     int two_SSA_M = 2 * SSA_M;
     int three_SSA_M = 3 * SSA_M;
     int four_SSA_M = 4 * SSA_M;
@@ -99,6 +111,10 @@ void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *prope
     // 2. Production (D → 2D)
     for (int i = SSA_M; i < two_SSA_M; i++) {
         int index = i - SSA_M;
+        if (index < 0 || index >= SSA_M) {
+            fprintf(stderr, "Error: index out of bounds. index=%d, SSA_M=%d\n", index, SSA_M);
+            return;
+        }
         propensity_list[i] = production_rate * combined_mass_list[index] * boolean_SSA_list[index];  // If SSA is “active”
     }
 
@@ -129,6 +145,8 @@ void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *prope
     // 6. Conversion D → C (only when above threshold)
     for (int i = five_SSA_M; i < six_SSA_M; i++) {
         int index = i - five_SSA_M;
+        printf("index: %d\n",index);
+        printf("i in propensity: %d\n",i);
         float combined_mass = combined_mass_list[index];
         int SSA_mass = SSA_list[index];
 
