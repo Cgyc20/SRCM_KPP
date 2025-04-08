@@ -245,7 +245,6 @@ class CFunctionWrapper:
     
 
 class Numerical_wrapper:
-
     def __init__(self, params, library_path="C_Numerical_functions.so"):
         """
         Initialize the Numerical_wrapper with parameters.
@@ -256,14 +255,84 @@ class Numerical_wrapper:
                 - diffusion_rate (float): Diffusion rate for the PDE system.
                 - degradation_rate (float): Degradation rate for the PDE system.
                 - production_rate (float): Production rate for the PDE system.
+                - deltax (float): Spatial discretization step size.
                 - timestep (float): Time step size for numerical integration.
-            library_path (str): Path to the compiled C library (default is "C_functions.so").
+            library_path (str): Path to the compiled C library (default is "C_Numerical_functions.so").
         """
-        self.PDE_M = params['PDE_M']
-        self.diffusion_rate = params['diffusion_rate']
-        self.degradation_rate = params['degradation_rate']
-        self.production_rate = params['production_rate']
-        self.timestep = params['timestep']
+        self.PDE_M = params['PDE_M']  # Number of PDE grid points
+        self.diffusion_rate = params['diffusion_rate']  # Diffusion rate for the PDE system
+        self.degradation_rate = params['degradation_rate']  # Degradation rate for the PDE system
+        self.production_rate = params['production_rate']  # Production rate for the PDE system
+        self.deltax = params['deltax']  # Spatial discretization step size
+        self.timestep = params['timestep']  # Time step size for numerical integration
 
+        # Create the finite difference matrix for diffusion
+        self.DNabla = self.create_finite_diff()
 
-        
+    def create_finite_diff(self):
+        """
+        Creates the finite difference matrix for the diffusion term.
+
+        Returns:
+            np.ndarray: Finite difference matrix scaled by the diffusion coefficient.
+        """
+        diff_coefficient = self.diffusion_rate / (self.deltax**2)  # Scaling factor for diffusion
+        DX = np.zeros((self.PDE_M, self.PDE_M), dtype=int)  # Initialize the finite difference matrix
+
+        # Set boundary conditions
+        DX[0, 0], DX[-1, -1] = -1, -1
+        DX[0, 1], DX[-1, -2] = 1, 1
+
+        # Fill the interior of the matrix
+        for i in range(1, DX.shape[0] - 1):
+            DX[i, i] = -2
+            DX[i, i + 1] = 1
+            DX[i, i - 1] = 1
+
+        return diff_coefficient * DX  # Scale the matrix by the diffusion coefficient
+
+    def _RHS_derivative(self, old_vector, boolean_threshold, SSA_fine_mass):
+        """
+        Calculates the right-hand side (RHS) of the PDE system.
+
+        Parameters:
+            old_vector (np.ndarray): Current state of the PDE grid.
+            boolean_threshold (np.ndarray): Boolean mask for active regions.
+            SSA_fine_mass (np.ndarray): Fine-grained SSA mass mapped to the PDE grid.
+
+        Returns:
+            np.ndarray: The RHS of the PDE system.
+        """
+        # Compute the diffusion term
+        diffusion_term = self.DNabla @ old_vector
+
+        # Compute the degradation term (nonlinear)
+        degradation_term = self.degradation_rate * boolean_threshold * ((old_vector + SSA_fine_mass) ** 2)
+
+        # Compute the production term
+        production_term = self.production_rate * boolean_threshold * (old_vector + SSA_fine_mass)
+
+        # Combine all terms to compute the RHS
+        dudt = diffusion_term - degradation_term + production_term
+        return dudt
+
+    def RK4_steps(self, old_vector, boolean_threshold, SSA_fine_mass):
+        """
+        Perform one step of the Runge-Kutta 4th order (RK4) method for time integration.
+
+        Parameters:
+            old_vector (np.ndarray): Current state of the PDE grid.
+            boolean_threshold (np.ndarray): Boolean mask for active regions.
+            SSA_fine_mass (np.ndarray): Fine-grained SSA mass mapped to the PDE grid.
+
+        Returns:
+            np.ndarray: Updated state of the PDE grid after one RK4 step.
+        """
+        # Compute the RK4 coefficients
+        k1 = self._RHS_derivative(old_vector, boolean_threshold, SSA_fine_mass)
+        k2 = self._RHS_derivative(old_vector + 0.5 * self.timestep * k1, boolean_threshold, SSA_fine_mass)
+        k3 = self._RHS_derivative(old_vector + 0.5 * self.timestep * k2, boolean_threshold, SSA_fine_mass)
+        k4 = self._RHS_derivative(old_vector + self.timestep * k3, boolean_threshold, SSA_fine_mass)
+
+        # Combine the coefficients to compute the next state
+        return old_vector + self.timestep * (k1 + 2 * k2 + 2 * k3 + k4) / 6
