@@ -85,11 +85,11 @@ void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *prope
         return;
     }
 
-    printf("Entering CalculatePropensity with SSA_M=%d\n", SSA_M);
-    printf("Pointer addresses:\n");
-    printf("PDE_list: %p\n", (void*)PDE_list);
-    printf("SSA_list: %p\n", (void*)SSA_list);
-    printf("propensity_list: %p\n", (void*)propensity_list);        
+    // printf("Entering CalculatePropensity with SSA_M=%d\n", SSA_M);
+    // printf("Pointer addresses:\n");
+    // printf("PDE_list: %p\n", (void*)PDE_list);
+    // printf("SSA_list: %p\n", (void*)SSA_list);
+    // printf("propensity_list: %p\n", (void*)propensity_list);        
 
     int two_SSA_M = 2 * SSA_M;
     int three_SSA_M = 3 * SSA_M;
@@ -97,9 +97,9 @@ void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *prope
     int five_SSA_M = 5 * SSA_M;
     int six_SSA_M = 6 * SSA_M;
 
-    printf("SSA_M: %d\n", SSA_M);
-    printf("Expected combined_mass_list size: %d\n", SSA_M);
-    printf("Expected propensity_list size: %d\n", 6 * SSA_M);   
+    //printf("SSA_M: %d\n", SSA_M);
+    //printf("Expected combined_mass_list size: %d\n", SSA_M);
+    //printf("Expected propensity_list size: %d\n", 6 * SSA_M);   
 
     for (int i = 0; i < six_SSA_M; i++) {
         propensity_list[i] = 0.0f;  // Clear all propensity values before computing
@@ -119,12 +119,12 @@ void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *prope
             fprintf(stderr, "Error: index out of bounds. index=%d, SSA_M=%d\n", index, SSA_M);
             return;
         }
-        printf("index: %d\n",index);
-        printf("combined_mass_list: %f\n",combined_mass_list[index]);
-        printf("boolean_SSA_list: %d\n",boolean_SSA_list[index]);
+        //printf("index: %d\n",index);
+        //printf("combined_mass_list: %f\n",combined_mass_list[index]);
+        //printf("boolean_SSA_list: %d\n",boolean_SSA_list[index]);
 
         propensity_list[i] = production_rate * combined_mass_list[index] * boolean_SSA_list[index];  // If SSA is “active”
-        printf("propensity list: %f\n",propensity_list[i]);
+        //printf("propensity list: %f\n",propensity_list[i]);
     }
 
     // 3. Degradation: D + D → D (self-degradation)
@@ -154,8 +154,8 @@ void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *prope
     // 6. Conversion D → C (only when above threshold)
     for (int i = five_SSA_M; i < six_SSA_M; i++) {
         int index = i - five_SSA_M;
-        printf("index: %d\n",index);
-        printf("i in propensity: %d\n",i);
+        //printf("index: %d\n",index);
+        //printf("i in propensity: %d\n",i);
         float combined_mass = combined_mass_list[index];
         int SSA_mass = SSA_list[index];
 
