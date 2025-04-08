@@ -247,7 +247,7 @@ class CFunctionWrapper:
             """
             # Debug: Print sizes of inputs
 
-            print(f"PDE list : {PDE_list}")
+            #print(f"PDE list : {PDE_list}")
             PDE_length = SSA_M*PDE_multiple #The length of the PDE list
             assert len(PDE_list) == PDE_length, f"Not the right length"
     
@@ -263,7 +263,7 @@ class CFunctionWrapper:
             propensity_list = np.zeros(6 * SSA_M, dtype=np.float32)  # Explicit initialization
 
             # Correctly call the instance method with 'self' and pass 'h'
-            boolean_SSA_list, Boolean_PDE_list = self.boolean_low_limit(SSA_M, PDE_multiple, PDE_list, h)
+            Boolean_PDE_list, boolean_SSA_list = self.boolean_low_limit(SSA_M, PDE_multiple, PDE_list, h)
 
             #print(f"Boolean_SSA_list in python is: {boolean_SSA_list}")
 
@@ -280,7 +280,7 @@ class CFunctionWrapper:
             #print(f"approximate_PDE_mass size: {len(approximate_PDE_mass)}")
 
             # Correctly call the instance method with 'self'
-            _, boolean_mass_list = self.boolean_threshold_mass(SSA_M, PDE_multiple, combined_mass_list, h, threshold)
+            compartment_bool_list, PDE_bool_list = self.boolean_threshold_mass(SSA_M, PDE_multiple, combined_mass_list, h, threshold)
 
             # Debug: Print size of boolean_mass_list
             #print(f"boolean_mass_list size: {len(boolean_mass_list)}")
@@ -293,7 +293,7 @@ class CFunctionWrapper:
                 boolean_SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                 combined_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
                 approximate_PDE_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-                boolean_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
                 ctypes.c_float(degradation_rate_h),
                 ctypes.c_float(threshold),
                 ctypes.c_float(production_rate),
@@ -307,5 +307,5 @@ class CFunctionWrapper:
                 "boolean_PDE_list": Boolean_PDE_list,
                 "combined_mass_list": combined_mass_list,
                 "approximate_PDE_mass": approximate_PDE_mass,
-                "boolean_mass_list": boolean_mass_list
+                "boolean_mass_list": compartment_bool_list
             }
