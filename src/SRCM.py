@@ -4,7 +4,7 @@ import os
 import json
 from copy import deepcopy, copy
 import ctypes
-from .c_class import CFunctionWrapper
+from .c_class import CFunctionWrapper, Numerical_wrapper
 
 
 class Hybrid:
@@ -27,7 +27,7 @@ class Hybrid:
         self.threshold_conc = input['threshold_conc']
         self.SSA_X = np.linspace(0, self.L - self.h, self.SSA_M)
         self.PDE_M = self.SSA_M * self.PDE_multiple
-        self.PDE_X = np.linspace(0, self.L, self.PDE_M)
+        self.PDE_X = np.linspace(0, self.L, self.PDE_M) 
 
     
         # Validate SSA_initial
@@ -46,7 +46,29 @@ class Hybrid:
         self.DX_NEW = self.create_finite_difference()
         self.time_vector = np.arange(0, self.total_time, self.timestep)
 
-        self.CFunctions = CFunctionWrapper()
+        Cfunctions_params = {'SSA_M': self.SSA_M,
+                            'PDE_multiple': self.PDE_multiple,
+                            'PDE_M': self.PDE_M,
+                            'h': self.h,
+                            'deltax': self.deltax,
+                            'threshold': self.threshold,
+                            'production_rate':self.production_rate,
+                            'degradation_rate_h': self.degradation_rate/self.h,
+                            'jump_rate': self.d,
+                            'gamma': self.gamma,
+                            }
+
+        Numerical_params = {'PDE_M': self.PDE_M,
+                            'diffusion_rate': self.diffusion_rate,
+                            'degradation_rate': self.degradation_rate,
+                            'production_rate': self.production_rate,
+                            'deltax': self.deltax,
+                            'timestep': self.timestep,}
+        
+        self.CFunctions = CFunctionWrapper(Cfunctions_params)
+    
+        self.NumericalClass = Numerical_wrapper(Numerical_params)
+        
 
         print("Successfully initialized the hybrid model")
         print(f"The threshold concentration is: {self.threshold_conc}")
@@ -120,86 +142,6 @@ class Hybrid:
         k4 = self.RHS_derivative(old_vector + dt * k3, boolean_threshold, SSA_fine_mass)
         return old_vector + dt * (k1 + 2 * k2 + 2 * k3 + k4) / 6
     
-
- 
-    def propensity_calculation(self, SSA_list: np.ndarray, PDE_list: np.ndarray) -> np.ndarray:
-        SSA_list = SSA_list.astype(int)
-        PDE_list = PDE_list.astype(float)
-
-        combined_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list)
-        boolean_SSA_threshold, _ = self.threshold_boolean(combined_list)
-
-        movement_propensity = 2 * self.d * SSA_list
-        movement_propensity[0] = self.d * SSA_list[0]
-        movement_propensity[-1] = self.d * SSA_list[-1]
-
-        R1_propensity = self.production_rate * combined_list * boolean_SSA_threshold #D-> 2D
-        #R1_propensity = self.production_rate * SSA_list #D-> 2A
-        R2_propensity = self.degradation_rate * (1 / self.h) * SSA_list * (SSA_list - 1) #2D -> D
-        R3_propensity = 2 * self.degradation_rate * (1 / self.h) * approximate_PDE_mass * SSA_list # D+C -> C
-
-        conversion_to_discrete = np.zeros_like(SSA_list)
-        conversion_to_cont = np.zeros_like(approximate_PDE_mass)
-        boolean_SSA_threshold = self.boolean_if_less_mass(PDE_list).astype(int)
-        conversion_to_discrete[combined_list < self.threshold] = approximate_PDE_mass[combined_list < self.threshold] * self.gamma
-        conversion_to_discrete *= boolean_SSA_threshold
-        conversion_to_cont[combined_list >= self.threshold] = SSA_list[combined_list >= self.threshold] * self.gamma
-        combined_propensity = np.concatenate((movement_propensity, R1_propensity, R2_propensity, R3_propensity, conversion_to_discrete, conversion_to_cont))
-        return combined_propensity
-    
-
-    
-    def propensity_calculationC(self, SSA_list, PDE_list, combined_mass_list, Approximate_PDE_Mass, boolean_SSA_list):
-
-        # Convert inputs to appropriate data types
-        SSA_list = np.ascontiguousarray(SSA_list, dtype=np.int32)
-        PDE_list = np.ascontiguousarray(PDE_list, dtype=np.float32)
-        combined_mass_list = np.ascontiguousarray(combined_mass_list, dtype=np.float32)
-        Approximate_PDE_Mass = np.ascontiguousarray(Approximate_PDE_Mass, dtype=np.float32)
-        boolean_SSA_list = np.ascontiguousarray(boolean_SSA_list, dtype=np.int32)
-        boolean_if_less_mass = self.boolean_if_less_mass(PDE_list).astype(int)
-        boolean_if_less_mass = np.ascontiguousarray(boolean_if_less_mass, dtype=np.int32)
-                # Constants
-
-       
-
-        SSA_M = ctypes.c_int(len(SSA_list))
-        degradation_rate_h = ctypes.c_float(self.degradation_rate)
-        threshold = ctypes.c_float(self.threshold_conc)
-        production_rate = ctypes.c_float(self.production_rate)
-        gamma = ctypes.c_float(self.gamma)
-        jump_rate = ctypes.c_float(self.d)
-
-
-        # Output array for propensities
-        propensity_list = np.zeros(6 * SSA_M.value, dtype=np.float32)
-
-        # Convert NumPy arrays to ctypes pointers
-        PDE_list_ptr = PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-        SSA_list_ptr = SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
-        propensity_list_ptr = propensity_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-        boolean_SSA_list_ptr = boolean_SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
-        combined_mass_list_ptr = combined_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-        Approximate_PDE_Mass_ptr = Approximate_PDE_Mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
-        boolean_if_less_mass_ptr = boolean_if_less_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_int))
-        
-        # Call the C function
-        clibrary.CalculatePropensity(
-            SSA_M,
-            PDE_list_ptr,
-            SSA_list_ptr,
-            propensity_list_ptr,
-            boolean_SSA_list_ptr,
-            combined_mass_list_ptr,
-            Approximate_PDE_Mass_ptr,
-            boolean_if_less_mass_ptr,
-            degradation_rate_h,
-            threshold,
-            production_rate,
-            gamma,
-            jump_rate
-        )
-        return propensity_list
 
 
 
