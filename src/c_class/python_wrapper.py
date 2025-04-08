@@ -2,11 +2,23 @@ import numpy as np
 import ctypes
 
 class CFunctionWrapper:
-    def __init__(self,params, library_path="C_functions.so"):
+    def __init__(self, params, library_path="C_functions.so"):
         """
-        Initialize the wrapper by loading the C library.
-        """
+        Initialize the wrapper by loading the C library and setting parameters.
 
+        Parameters:
+            params (dict): Dictionary containing the following keys:
+                - SSA_M (int): Number of SSA compartments.
+                - PDE_multiple (int): Number of PDE points per SSA compartment.
+                - deltax (float): Spatial discretization step size.
+                - h (float): Grid size or thresholding parameter.
+                - threshold (float): Minimum mass threshold for significance.
+                - production_rate (float): Rate of production.
+                - degradation_rate_h (float): Degradation rate scaled by h.
+                - jump_rate (float): Rate of stochastic jumps.
+                - gamma (float): Nonlinear scaling or interaction parameter.
+            library_path (str): Path to the compiled C library.
+        """
         self.SSA_M = params['SSA_M']
         self.PDE_multiple = params['PDE_multiple']
         self.deltax = params['deltax']
@@ -17,85 +29,51 @@ class CFunctionWrapper:
         self.jump_rate = params['jump_rate']
         self.gamma = params['gamma']
 
-
         self.lib = ctypes.CDLL(library_path)
 
         # Define argument types for the C functions
         self.lib.ApproximateMassLeftHand.argtypes = [
-            ctypes.c_int,  # SSA_M
-            ctypes.c_int,  # PDE_multiple
-            ctypes.POINTER(ctypes.c_float),  # PDE_list
-            ctypes.POINTER(ctypes.c_float),  # approxMass
-            ctypes.c_float  # deltax
+            ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_float),
+            ctypes.POINTER(ctypes.c_float), ctypes.c_float
         ]
-
         self.lib.BooleanMass.argtypes = [
-            ctypes.c_int,  # SSA_m
-            ctypes.c_int,  # PDE_m
-            ctypes.c_int,  # PDE_multiple
-            ctypes.POINTER(ctypes.c_float),  # PDE_list
-            ctypes.POINTER(ctypes.c_int),  # boolean_PDE_list
-            ctypes.POINTER(ctypes.c_int),  # boolean_SSA_list
-            ctypes.c_float  # h
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_float),
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int), ctypes.c_float
         ]
-
         self.lib.BooleanThresholdMass.argtypes = [
-            ctypes.c_int,  # SSA_m
-            ctypes.c_int,  # PDE_m
-            ctypes.c_int,  # PDE_multiple
-            ctypes.POINTER(ctypes.c_float),  # combined_list
-            ctypes.c_float,  # h
-            ctypes.POINTER(ctypes.c_int),  # compartment_bool_list
-            ctypes.POINTER(ctypes.c_int),  # PDE_bool_list
-            ctypes.c_float  # threshold
+            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.POINTER(ctypes.c_float),
+            ctypes.c_float, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.c_float
         ]
-
         self.lib.FineGridSSAMass.argtypes = [
-            ctypes.POINTER(ctypes.c_int),  # SSA_mass
-            ctypes.c_int,  # PDE_grid_length
-            ctypes.c_int,  # SSA_m
-            ctypes.c_int,  # PDE_multiple
-            ctypes.c_float,  # h
-            ctypes.POINTER(ctypes.c_float)  # fine_SSA_Mass
+            ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.c_int, ctypes.c_int,
+            ctypes.c_float, ctypes.POINTER(ctypes.c_float)
         ]
-
         self.lib.CalculatePropensity.argtypes = [
-            ctypes.c_int,  # SSA_M
-            ctypes.POINTER(ctypes.c_float),  # PDE_list
-            ctypes.POINTER(ctypes.c_int),  # SSA_list
-            ctypes.POINTER(ctypes.c_float),  # propensity_list
-            ctypes.POINTER(ctypes.c_int),  # boolean_SSA_list
-            ctypes.POINTER(ctypes.c_float),  # combined_mass_list
-            ctypes.POINTER(ctypes.c_float),  # Approximate_PDE_Mass
-            ctypes.POINTER(ctypes.c_int),  # boolean_mass_list
-            ctypes.c_float,  # degradation_rate_h
-            ctypes.c_float,  # threshold
-            ctypes.c_float,  # production_rate
-            ctypes.c_float,  # gamma
-            ctypes.c_float  # jump_rate
+            ctypes.c_int, ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_float), ctypes.POINTER(ctypes.c_float),
+            ctypes.POINTER(ctypes.c_int), ctypes.c_float, ctypes.c_float,
+            ctypes.c_float, ctypes.c_float, ctypes.c_float
         ]
 
         print(f"Loaded C library from {library_path}")
 
     def __str__(self):
         return f"CFunctionWrapper(library_path={self.lib._name}) for the Hybrid method"
-    
 
     def approximate_mass_left_hand(self, PDE_list):
         """
-        Computes the approximate PDE mass at each SSA compartment (left-hand weighted sum).
-        
+        Computes the approximate PDE mass at each SSA compartment using the left-hand rule.
+
         Parameters:
-            SSA_M (int): Number of SSA compartments.
-            PDE_multiple (int): Number of PDE points per SSA compartment.
             PDE_list (array-like): Values of the PDE grid.
-            deltax (float): Spatial discretization step size.
 
         Returns:
             np.ndarray: Approximate PDE mass in each SSA compartment.
         """
-        approximate_PDE_mass = np.zeros(self.SSA_M, dtype=np.float32) #set the approximate mass to be zero
-        PDE_list = np.array(PDE_list, dtype=np.float32) #Convert to np.float32
+        approximate_PDE_mass = np.zeros(self.SSA_M, dtype=np.float32)
+        PDE_list = np.array(PDE_list, dtype=np.float32)
 
         self.lib.ApproximateMassLeftHand(
             ctypes.c_int(self.SSA_M),
@@ -114,50 +92,41 @@ class CFunctionWrapper:
         Parameters:
             PDE_list (array-like): PDE values across the domain.
             SSA_list (array-like): SSA values per compartment.
-            PDE_multiple (int): Number of PDE grid points per SSA compartment.
-            deltax (float): Spatial step.
-            SSA_M (int): Number of SSA compartments.
 
         Returns:
             tuple:
-                combined_list (np.ndarray): Total mass per compartment (PDE + SSA).
-                approximate_PDE_mass (np.ndarray): The approximate PDE mass component.
+                - combined_list (np.ndarray): Total mass per compartment (PDE + SSA).
+                - approximate_PDE_mass (np.ndarray): The approximate PDE mass component.
         """
-
-
         PDE_list = np.array(PDE_list, dtype=np.float32)
         SSA_list = np.array(SSA_list, dtype=np.int32)
 
-        approximate_PDE_mass = self.approximate_mass_left_hand(self.SSA_M, self.PDE_multiple, PDE_list, self.deltax) #THe left hand rule on the finer PDE domain, to be on same grid as the SSA compartmental method.
-        combined_list = np.add(SSA_list, approximate_PDE_mass) #add them together
+        approximate_PDE_mass = self.approximate_mass_left_hand(PDE_list)
+        combined_list = np.add(SSA_list, approximate_PDE_mass)
 
         return combined_list, approximate_PDE_mass
 
     def boolean_low_limit(self, PDE_list):
         """
-        Computes boolean masks (0 or 1) for where there is significant PDE and SSA mass. If the PDE mass is below 1/h then conversion cannot occur and gives a zero value.
+        Computes boolean masks for significant PDE and SSA mass.
 
         Parameters:
-            SSA_m (int): Number of SSA compartments.
-            PDE_multiple (int): PDE points per SSA compartment.
             PDE_list (array-like): PDE concentration values.
-            h (float): Grid size or thresholding parameter.
 
         Returns:
             tuple:
-                boolean_PDE_list (np.ndarray): Mask for PDE domain. This is same length as PDE, 0 if the mass is below 1/h otherwise 1.
-                boolean_SSA_list (np.ndarray): Mask for SSA compartments. If any of the PDE bool value is zero within the compartment then this will also be zero in the SSA_compartment.
+                - boolean_PDE_list (np.ndarray): Mask for PDE domain (0 if mass < 1/h, else 1).
+                - boolean_SSA_list (np.ndarray): Mask for SSA compartments (0 if any PDE bool is 0).
         """
-
         PDE_list = np.array(PDE_list, dtype=np.float32)
-        PDE_length = self.SSA_m*self.PDE_multiple
-        assert len(PDE_list) == PDE_length, f"Not the right length"
+        PDE_length = self.SSA_M * self.PDE_multiple
+        assert len(PDE_list) == PDE_length, "PDE_list length mismatch."
 
-        boolean_PDE_list = np.zeros(self.SSA_m*self.PDE_multiple, dtype=np.int32)
-        boolean_SSA_list = np.zeros(self.SSA_m, dtype=np.int32)
+        boolean_PDE_list = np.zeros(PDE_length, dtype=np.int32)
+        boolean_SSA_list = np.zeros(self.SSA_M, dtype=np.int32)
 
         self.lib.BooleanMass(
-            ctypes.c_int(self.SSA_m),
+            ctypes.c_int(self.SSA_M),
             ctypes.c_int(PDE_length),
             ctypes.c_int(self.PDE_multiple),
             PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
@@ -168,32 +137,25 @@ class CFunctionWrapper:
 
         return boolean_PDE_list, boolean_SSA_list
 
-    def boolean_threshold_mass(self,combined_list):
+    def boolean_threshold_mass(self, combined_list):
         """
-        Computes boolean masks based on a threshold for total (PDE + SSA) mass.
+        Computes boolean masks based on a threshold for total mass.
 
         Parameters:
-            SSA_m (int): Number of SSA compartments.
-            PDE_m (int): Number of PDE points.
-            PDE_multiple (int): PDE points per SSA compartment.
             combined_list (array-like): Combined SSA and PDE mass values.
-            h (float): Grid size.
-            threshold (float): Minimum mass threshold to consider "significant".
 
         Returns:
             tuple:
-                compartment_bool_list (np.ndarray): Mask for SSA compartments. If the combined mass is greater than the threshold then bool value is 1, else 0.
-                PDE_bool_list (np.ndarray): Mask for PDE domain. If the combined mass is greater in that associated compartment then bool value is 0, otherwise 1.
+                - compartment_bool_list (np.ndarray): Mask for SSA compartments (1 if mass > threshold).
+                - PDE_bool_list (np.ndarray): Mask for PDE domain (1 if mass > threshold).
         """
         combined_list = np.array(combined_list, dtype=np.float32)
-        compartment_bool_list = np.zeros(self.SSA_m, dtype=np.int32)
-
-        PDE_length = self.SSA_m*self.PDE_multiple
-     
+        compartment_bool_list = np.zeros(self.SSA_M, dtype=np.int32)
+        PDE_length = self.SSA_M * self.PDE_multiple
         PDE_bool_list = np.zeros(PDE_length, dtype=np.int32)
 
         self.lib.BooleanThresholdMass(
-            ctypes.c_int(self.SSA_m),
+            ctypes.c_int(self.SSA_M),
             ctypes.c_int(PDE_length),
             ctypes.c_int(self.PDE_multiple),
             combined_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
@@ -211,22 +173,18 @@ class CFunctionWrapper:
 
         Parameters:
             SSA_mass (array-like): SSA values per compartment.
-            PDE_grid_length (int): Total length of the PDE grid.
-            SSA_m (int): Number of SSA compartments.
-            PDE_multiple (int): PDE points per SSA compartment.
-            h (float): Grid spacing.
 
         Returns:
             np.ndarray: Fine-grained representation of SSA mass on PDE grid.
         """
         SSA_mass = np.array(SSA_mass, dtype=np.int32)
-        PDE_grid_length = self.SSA_m*self.PDE_multiple
+        PDE_grid_length = self.SSA_M * self.PDE_multiple
         fine_SSA_Mass = np.zeros(PDE_grid_length, dtype=np.float32)
 
         self.lib.FineGridSSAMass(
             SSA_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             ctypes.c_int(PDE_grid_length),
-            ctypes.c_int(self.SSA_m),
+            ctypes.c_int(self.SSA_M),
             ctypes.c_int(self.PDE_multiple),
             ctypes.c_float(self.h),
             fine_SSA_Mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
@@ -235,89 +193,51 @@ class CFunctionWrapper:
         return fine_SSA_Mass
 
     def calculate_propensity(self, PDE_list, SSA_list):
-            """
-            Computes the reaction propensities in each SSA compartment, using PDE influence and other parameters.
+        """
+        Computes the reaction propensities in each SSA compartment.
 
-            Parameters:
-                SSA_M (int): Number of SSA compartments.
-                PDE_list (array-like): PDE values.
-                SSA_list (array-like): SSA values.
-                degradation_rate_h (float): Degradation rate (scaled by h).
-                threshold (float): Activation threshold.
-                production_rate (float): Rate of production.
-                gamma (float): Nonlinear scaling or interaction parameter.
-                jump_rate (float): Rate of stochastic jumps.
-                h (float): Grid spacing.
+        Parameters:
+            PDE_list (array-like): PDE values.
+            SSA_list (array-like): SSA values.
 
-            Returns:
-                dict: Contains:
-                    - 'propensity_list' (np.ndarray): Propensity values.
-                    - 'boolean_SSA_list' (np.ndarray): Active SSA compartments, controlling production.
-                    - 'combined_mass_list' (np.ndarray): Combined mass at each compartment.
-                    - 'approximate_PDE_mass' (np.ndarray): PDE contribution.
-                    - 'boolean_mass_list' (np.ndarray): Boolean mask where mass is present.
-            """
-            # Debug: Print sizes of inputs
+        Returns:
+            dict: Contains:
+                - 'propensity_list' (np.ndarray): Propensity values.
+                - 'boolean_SSA_list' (np.ndarray): Active SSA compartments.
+                - 'boolean_PDE_list' (np.ndarray): Active PDE compartments.
+                - 'combined_mass_list' (np.ndarray): Combined mass at each compartment.
+                - 'approximate_PDE_mass' (np.ndarray): PDE contribution.
+                - 'boolean_mass_list' (np.ndarray): Boolean mask for mass presence.
+        """
+        PDE_list = np.array(PDE_list, dtype=np.float32)
+        SSA_list = np.array(SSA_list, dtype=np.int32)
+        propensity_list = np.zeros(6 * self.SSA_M, dtype=np.float32)
 
-            #print(f"PDE list : {PDE_list}")
-            PDE_length = self.SSA_M*self.PDE_multiple #The length of the PDE list
-            assert len(PDE_list) == PDE_length, f"Not the right length"
-    
+        boolean_PDE_list, boolean_SSA_list = self.boolean_low_limit(PDE_list)
+        combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list)
+        compartment_bool_list, PDE_bool_list = self.boolean_threshold_mass(combined_mass_list)
 
+        self.lib.CalculatePropensity(
+            ctypes.c_int(self.SSA_M),
+            PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            propensity_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            boolean_SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            combined_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            approximate_PDE_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            ctypes.c_float(self.degradation_rate_h),
+            ctypes.c_float(self.threshold),
+            ctypes.c_float(self.production_rate),
+            ctypes.c_float(self.gamma),
+            ctypes.c_float(self.jump_rate)
+        )
 
-            # Before C function call, enforce:
-            # PDE_list = np.ascontiguousarray(PDE_list, dtype=np.float32)  # Must match C's float
-            # SSA_list = np.ascontiguousarray(SSA_list, dtype=np.int32)    # Must match C's int
-
-            PDE_list = np.array(PDE_list, dtype=np.float32)  # Ensure correct type
-            SSA_list = np.array(SSA_list, dtype=np.int32)    # Ensure correct type
-            # Output array must be pre-allocated with exact size
-            propensity_list = np.zeros(6 * self.SSA_M, dtype=np.float32)  # Explicit initialization
-
-            # Correctly call the instance method with 'self' and pass 'h'
-            Boolean_PDE_list, boolean_SSA_list = self.boolean_low_limit(PDE_list)
-
-            #print(f"Boolean_SSA_list in python is: {boolean_SSA_list}")
-
-            # Debug: Print sizes of intermediate results
-            #print(f"boolean_SSA_list size: {len(boolean_SSA_list)}")
-
-            # Correctly call the instance method with 'self'
-            combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list)
-
-            combined_mass_list = np.array(combined_mass_list, dtype=np.float32)
-
-            # Debug: Print sizes of combined mass and approximate PDE mass
-            #print(f"combined_mass_list size: {len(combined_mass_list)}")
-            #print(f"approximate_PDE_mass size: {len(approximate_PDE_mass)}")
-
-            # Correctly call the instance method with 'self'
-            compartment_bool_list, PDE_bool_list = self.boolean_threshold_mass(combined_mass_list)
-
-            # Debug: Print size of boolean_mass_list
-            #print(f"boolean_mass_list size: {len(boolean_mass_list)}")
-
-            self.lib.CalculatePropensity(
-                ctypes.c_int(self.SSA_M),
-                PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-                SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-                propensity_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-                boolean_SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-                combined_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-                approximate_PDE_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-                compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-                ctypes.c_float(self.degradation_rate_h),
-                ctypes.c_float(self.threshold),
-                ctypes.c_float(self.production_rate),
-                ctypes.c_float(self.gamma),
-                ctypes.c_float(self.jump_rate)
-            )
-
-            return {
-                "propensity_list": propensity_list,
-                "boolean_SSA_list": boolean_SSA_list,
-                "boolean_PDE_list": Boolean_PDE_list,
-                "combined_mass_list": combined_mass_list,
-                "approximate_PDE_mass": approximate_PDE_mass,
-                "boolean_mass_list": compartment_bool_list
-            }
+        return {
+            "propensity_list": propensity_list,
+            "boolean_SSA_list": boolean_SSA_list,
+            "boolean_PDE_list": boolean_PDE_list,
+            "combined_mass_list": combined_mass_list,
+            "approximate_PDE_mass": approximate_PDE_mass,
+            "boolean_mass_list": compartment_bool_list
+        }
