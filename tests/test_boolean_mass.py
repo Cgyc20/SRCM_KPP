@@ -10,14 +10,13 @@ def wrapper():
 
 
 def test_boolean_mass_1(wrapper):
-    """Check that boolean_mass returns two NumPy arrays"""
+    """Check that boolean_low_limit returns two NumPy arrays"""
     SSA_M = 3
-    PDE_M = 6
     PDE_multiple = 2
     h = 0.1
     PDE_list = [0, 0, 1, 1, 0, 0]  # just dummy data
 
-    boolean_PDE, boolean_SSA = wrapper.boolean_mass(SSA_M, PDE_M, PDE_multiple, PDE_list, h)
+    boolean_PDE, boolean_SSA = wrapper.boolean_low_limit(SSA_M, PDE_multiple, PDE_list, h)
 
     assert isinstance(boolean_PDE, np.ndarray)
     assert isinstance(boolean_SSA, np.ndarray)
@@ -26,12 +25,11 @@ def test_boolean_mass_1(wrapper):
 def test_boolean_mass_2(wrapper):
     """This will check whether the datatyype in integer32"""
     SSA_M = 3
-    PDE_M = 6
     PDE_multiple = 2
     h = 0.1
     PDE_list = [0, 0, 1, 1, 0, 0]  # just dummy data
 
-    boolean_PDE, boolean_SSA = wrapper.boolean_mass(SSA_M, PDE_M, PDE_multiple, PDE_list, h)
+    boolean_PDE, boolean_SSA = wrapper.boolean_low_limit(SSA_M, PDE_multiple, PDE_list, h)
 
     assert boolean_PDE.dtype == np.int32
     assert boolean_SSA.dtype == np.int32
@@ -41,12 +39,11 @@ def test_boolean_mass_3(wrapper):
     """Ths will check whether the PDE boolean mass works"""
 
     SSA_M = 3
-    PDE_M = 6
     PDE_multiple = 2
     h = 0.1
     PDE_list = [1, 20, 30, 5, 0, 0]  # just dummy data
 
-    boolean_PDE, boolean_SSA = wrapper.boolean_mass(SSA_M, PDE_M, PDE_multiple, PDE_list, h)
+    boolean_PDE, boolean_SSA = wrapper.boolean_low_limit(SSA_M, PDE_multiple, PDE_list, h)
 
     boolean_PDE_query = [0,1,1,0,0,0]
     boolean_SSA_query = [1,0]
@@ -57,12 +54,11 @@ def test_boolean_mass_4(wrapper):
     """Ths will check whether the SSA boolean mass works"""
 
     SSA_M = 3
-    PDE_M = 6
     PDE_multiple = 2
     h = 0.1
     PDE_list = [100, 20, 30, 5, 0, 0]  # just dummy data
 
-    boolean_PDE, boolean_SSA = wrapper.boolean_mass(SSA_M, PDE_M, PDE_multiple, PDE_list, h)
+    boolean_PDE, boolean_SSA = wrapper.boolean_low_limit(SSA_M, PDE_multiple, PDE_list, h)
 
     boolean_SSA_query = [1,0,0] #Since the PDE bool is [1,1,1,0,0,]. SO firs double are both 1
 
