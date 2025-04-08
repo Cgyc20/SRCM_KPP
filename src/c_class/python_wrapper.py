@@ -177,10 +177,8 @@ class CFunctionWrapper:
         combined_list = np.array(combined_list, dtype=np.float32)
         compartment_bool_list = np.zeros(SSA_m, dtype=np.int32)
 
-        PDE_list = np.array(PDE_list, dtype=np.float32)
         PDE_length = SSA_m*PDE_multiple
-        assert len(PDE_list) == PDE_length, f"Not the right length"
-
+     
         PDE_bool_list = np.zeros(PDE_length, dtype=np.int32)
 
         self.lib.BooleanThresholdMass(
@@ -249,21 +247,23 @@ class CFunctionWrapper:
             """
             # Debug: Print sizes of inputs
 
-
+            print(f"PDE list : {PDE_list}")
             PDE_length = SSA_M*PDE_multiple #The length of the PDE list
             assert len(PDE_list) == PDE_length, f"Not the right length"
     
 
 
             # Before C function call, enforce:
-            PDE_list = np.ascontiguousarray(PDE_list, dtype=np.float32)  # Must match C's float
-            SSA_list = np.ascontiguousarray(SSA_list, dtype=np.int32)    # Must match C's int
+            # PDE_list = np.ascontiguousarray(PDE_list, dtype=np.float32)  # Must match C's float
+            # SSA_list = np.ascontiguousarray(SSA_list, dtype=np.int32)    # Must match C's int
 
+            PDE_list = np.array(PDE_list, dtype=np.float32)  # Ensure correct type
+            SSA_list = np.array(SSA_list, dtype=np.int32)    # Ensure correct type
             # Output array must be pre-allocated with exact size
             propensity_list = np.zeros(6 * SSA_M, dtype=np.float32)  # Explicit initialization
 
             # Correctly call the instance method with 'self' and pass 'h'
-            boolean_SSA_list, Boolean_PDE_list = self.boolean_mass(SSA_M, PDE_length, PDE_multiple, PDE_list, h)
+            boolean_SSA_list, Boolean_PDE_list = self.boolean_low_limit(SSA_M, PDE_multiple, PDE_list, h)
 
             #print(f"Boolean_SSA_list in python is: {boolean_SSA_list}")
 
@@ -280,7 +280,7 @@ class CFunctionWrapper:
             #print(f"approximate_PDE_mass size: {len(approximate_PDE_mass)}")
 
             # Correctly call the instance method with 'self'
-            _, boolean_mass_list = self.boolean_threshold_mass(SSA_M, PDE_length, PDE_multiple, combined_mass_list, h, threshold)
+            _, boolean_mass_list = self.boolean_threshold_mass(SSA_M, PDE_multiple, combined_mass_list, h, threshold)
 
             # Debug: Print size of boolean_mass_list
             #print(f"boolean_mass_list size: {len(boolean_mass_list)}")
