@@ -216,65 +216,82 @@ class CFunctionWrapper:
 
         return fine_SSA_Mass
 
-    def calculate_propensity(self, SSA_M, PDE_list, SSA_list, degradation_rate_h, threshold, production_rate, gamma, jump_rate, h):
-        """
-        Computes the reaction propensities in each SSA compartment, using PDE influence and other parameters.
+    def calculate_propensity(self, SSA_M, PDE_list, SSA_list,PDE_M, degradation_rate_h, threshold, production_rate, gamma, jump_rate, h):
+            """
+            Computes the reaction propensities in each SSA compartment, using PDE influence and other parameters.
 
-        Parameters:
-            SSA_M (int): Number of SSA compartments.
-            PDE_list (array-like): PDE values.
-            SSA_list (array-like): SSA values.
-            degradation_rate_h (float): Degradation rate (scaled by h).
-            threshold (float): Activation threshold.
-            production_rate (float): Rate of production.
-            gamma (float): Nonlinear scaling or interaction parameter.
-            jump_rate (float): Rate of stochastic jumps.
-            h (float): Grid spacing.
+            Parameters:
+                SSA_M (int): Number of SSA compartments.
+                PDE_list (array-like): PDE values.
+                SSA_list (array-like): SSA values.
+                degradation_rate_h (float): Degradation rate (scaled by h).
+                threshold (float): Activation threshold.
+                production_rate (float): Rate of production.
+                gamma (float): Nonlinear scaling or interaction parameter.
+                jump_rate (float): Rate of stochastic jumps.
+                h (float): Grid spacing.
 
-        Returns:
-            dict: Contains:
-                - 'propensity_list' (np.ndarray): Propensity values.
-                - 'boolean_SSA_list' (np.ndarray): Active SSA compartments, controlling production.
-                - 'combined_mass_list' (np.ndarray): Combined mass at each compartment.
-                - 'approximate_PDE_mass' (np.ndarray): PDE contribution.
-                - 'boolean_mass_list' (np.ndarray): Boolean mask where mass is present.
-        """
-        # Before C function call, enforce:
-        PDE_list = np.ascontiguousarray(PDE_list, dtype=np.float32)  # Must match C's float
-        SSA_list = np.ascontiguousarray(SSA_list, dtype=np.int32)    # Must match C's int
+            Returns:
+                dict: Contains:
+                    - 'propensity_list' (np.ndarray): Propensity values.
+                    - 'boolean_SSA_list' (np.ndarray): Active SSA compartments, controlling production.
+                    - 'combined_mass_list' (np.ndarray): Combined mass at each compartment.
+                    - 'approximate_PDE_mass' (np.ndarray): PDE contribution.
+                    - 'boolean_mass_list' (np.ndarray): Boolean mask where mass is present.
+            """
+            # Debug: Print sizes of inputs
+           
+            assert len(PDE_list) == SSA_M*PDE_M, f"Not the right length"
+            # Before C function call, enforce:
+            PDE_list = np.ascontiguousarray(PDE_list, dtype=np.float32)  # Must match C's float
+            SSA_list = np.ascontiguousarray(SSA_list, dtype=np.int32)    # Must match C's int
 
-        # Output array must be pre-allocated with exact size
-        propensity_list = np.zeros(6 * SSA_M, dtype=np.float32)  # Explicit initialization
+            # Output array must be pre-allocated with exact size
+            propensity_list = np.zeros(6 * SSA_M, dtype=np.float32)  # Explicit initialization
 
-        # Correctly call the instance method with 'self' and pass 'h'
-        boolean_SSA_list, _ = self.boolean_mass(SSA_M, SSA_M, SSA_M, PDE_list, h)
+            # Correctly call the instance method with 'self' and pass 'h'
+            boolean_SSA_list, _ = self.boolean_mass(SSA_M, SSA_M, 1, PDE_list, h)
 
-        # Correctly call the instance method with 'self'
-        combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list, SSA_M, h, SSA_M)
+            print(f"Boolean_SSA_list in python is: {boolean_SSA_list}")
 
-        # Correctly call the instance method with 'self'
-        _, boolean_mass_list = self.boolean_threshold_mass(SSA_M, SSA_M, SSA_M, combined_mass_list, h, threshold)
+            # Debug: Print sizes of intermediate results
+            print(f"boolean_SSA_list size: {len(boolean_SSA_list)}")
 
-        self.lib.CalculatePropensity(
-            ctypes.c_int(SSA_M),
-            PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-            propensity_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            boolean_SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-            combined_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            approximate_PDE_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            boolean_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-            ctypes.c_float(degradation_rate_h),
-            ctypes.c_float(threshold),
-            ctypes.c_float(production_rate),
-            ctypes.c_float(gamma),
-            ctypes.c_float(jump_rate)
-        )
+            # Correctly call the instance method with 'self'
+            combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list, SSA_M, h, SSA_M)
 
-        return {
-            "propensity_list": propensity_list,
-            "boolean_SSA_list": boolean_SSA_list,
-            "combined_mass_list": combined_mass_list,
-            "approximate_PDE_mass": approximate_PDE_mass,
-            "boolean_mass_list": boolean_mass_list
-        }
+            combined_mass_list = np.array(combined_mass_list, dtype=np.float32)
+
+            # Debug: Print sizes of combined mass and approximate PDE mass
+            print(f"combined_mass_list size: {len(combined_mass_list)}")
+            print(f"approximate_PDE_mass size: {len(approximate_PDE_mass)}")
+
+            # Correctly call the instance method with 'self'
+            _, boolean_mass_list = self.boolean_threshold_mass(SSA_M, SSA_M, SSA_M, combined_mass_list, h, threshold)
+
+            # Debug: Print size of boolean_mass_list
+            print(f"boolean_mass_list size: {len(boolean_mass_list)}")
+
+            self.lib.CalculatePropensity(
+                ctypes.c_int(SSA_M),
+                PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+                SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                propensity_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+                boolean_SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                combined_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+                approximate_PDE_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+                boolean_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+                ctypes.c_float(degradation_rate_h),
+                ctypes.c_float(threshold),
+                ctypes.c_float(production_rate),
+                ctypes.c_float(gamma),
+                ctypes.c_float(jump_rate)
+            )
+
+            return {
+                "propensity_list": propensity_list,
+                "boolean_SSA_list": boolean_SSA_list,
+                "combined_mass_list": combined_mass_list,
+                "approximate_PDE_mass": approximate_PDE_mass,
+                "boolean_mass_list": boolean_mass_list
+            }
