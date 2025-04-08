@@ -148,13 +148,13 @@ class CFunctionWrapper:
 
         Returns:
             tuple:
-                - threshold_compartment_bool_list (np.ndarray): Mask for SSA compartments (1 if mass > threshold).
-                - threshold_PDE_bool_list (np.ndarray): Mask for PDE domain (1 if mass > threshold).
+                - compartment_bool_list (np.ndarray): Mask for SSA compartments (1 if mass > threshold).
+                - PDE_bool_list (np.ndarray): Mask for PDE domain (1 if mass > threshold).
         """
         combined_list = np.array(combined_list, dtype=np.float32)
-        threshold_compartment_bool_list = np.zeros(self.SSA_M, dtype=np.int32)
+        compartment_bool_list = np.zeros(self.SSA_M, dtype=np.int32)
         PDE_length = self.SSA_M * self.PDE_multiple
-        threshold_PDE_bool_list = np.zeros(PDE_length, dtype=np.int32)
+        PDE_bool_list = np.zeros(PDE_length, dtype=np.int32)
 
         self.lib.BooleanThresholdMass(
             ctypes.c_int(self.SSA_M),
@@ -162,12 +162,12 @@ class CFunctionWrapper:
             ctypes.c_int(self.PDE_multiple),
             combined_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             ctypes.c_float(self.h),
-            threshold_compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-            threshold_PDE_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            PDE_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             ctypes.c_float(self.threshold)
         )
 
-        return threshold_compartment_bool_list, threshold_PDE_bool_list
+        return compartment_bool_list, PDE_bool_list
 
     def fine_grid_ssa_mass(self, SSA_mass):
         """
@@ -204,36 +204,37 @@ class CFunctionWrapper:
 
         Returns:
             dict: Contains:
-                - 'propensity_list' (np.ndarray): Propensity values.
-                - 'min_mass_compartment_bool_list' (np.ndarray): Active SSA compartments based on minimum mass.
-                - 'min_mass_PDE_bool_list' (np.ndarray): Active PDE compartments based on minimum mass.
-                - 'threshold_compartment_bool_list' (np.ndarray): Active SSA compartments based on threshold.
-                - 'threshold_PDE_bool_list' (np.ndarray): Active PDE compartments based on threshold.
-                - 'combined_mass_list' (np.ndarray): Combined mass at each compartment.
-                - 'approximate_PDE_mass' (np.ndarray): PDE contribution.
+                - 'propensity' (np.ndarray): Propensity values.
+                - 'min_mass_SSA' (np.ndarray): Active SSA compartments based on minimum mass.
+                - 'min_mass_PDE' (np.ndarray): Active PDE compartments based on minimum mass.
+                - 'threshold_SSA' (np.ndarray): Active SSA compartments based on threshold.
+                - 'threshold_PDE' (np.ndarray): Active PDE compartments based on threshold.
+                - 'combined_mass' (np.ndarray): Combined mass at each compartment.
+                - 'approx_PDE_mass' (np.ndarray): PDE contribution.
         """
         PDE_list = np.array(PDE_list, dtype=np.float32)
         SSA_list = np.array(SSA_list, dtype=np.int32)
-        propensity_list = np.zeros(6 * self.SSA_M, dtype=np.float32)
+        propensity = np.zeros(6 * self.SSA_M, dtype=np.float32)
 
         # Compute boolean masks based on minimum mass
-        min_mass_PDE_bool_list, min_mass_compartment_bool_list = self.boolean_low_limit(PDE_list)
+        min_mass_PDE, min_mass_SSA = self.boolean_low_limit(PDE_list)
 
         # Compute combined mass and approximate PDE mass
-        combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list)
+        combined_mass, approx_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list)
 
         # Compute boolean masks based on threshold
-        threshold_compartment_bool_list, threshold_PDE_bool_list = self.boolean_threshold_mass(combined_mass_list)
+        threshold_SSA, threshold_PDE = self.boolean_threshold_mass(combined_mass)
 
+        # Call the C function to calculate propensities
         self.lib.CalculatePropensity(
             ctypes.c_int(self.SSA_M),
             PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-            propensity_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            threshold_compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-            combined_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            approximate_PDE_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            threshold_compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            propensity.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            threshold_SSA.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            combined_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            approx_PDE_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            min_mass_SSA.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             ctypes.c_float(self.degradation_rate_h),
             ctypes.c_float(self.threshold),
             ctypes.c_float(self.production_rate),
@@ -242,13 +243,13 @@ class CFunctionWrapper:
         )
 
         return {
-            "propensity_list": propensity_list,
-            "min_mass_compartment_bool_list": min_mass_compartment_bool_list,
-            "min_mass_PDE_bool_list": min_mass_PDE_bool_list,
-            "threshold_compartment_bool_list": threshold_compartment_bool_list,
-            "threshold_PDE_bool_list": threshold_PDE_bool_list,
-            "combined_mass_list": combined_mass_list,
-            "approximate_PDE_mass": approximate_PDE_mass,
+            "propensity": propensity,
+            "min_mass_SSA": min_mass_SSA,
+            "min_mass_PDE": min_mass_PDE,
+            "threshold_SSA": threshold_SSA,
+            "threshold_PDE": threshold_PDE,
+            "combined_mass": combined_mass,
+            "approx_PDE_mass": approx_PDE_mass,
         }
     
 

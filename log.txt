@@ -1,0 +1,5 @@
+Loaded C library from src/c_class/C_functions.so
+Successfully initialized the hybrid model
+The threshold concentration is: 500.0
+Simulation completed
+Data saved successfully

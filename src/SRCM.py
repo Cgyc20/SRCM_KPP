@@ -90,7 +90,7 @@ class Hybrid:
         SSA_list = SSA_grid[:, 0].astype(int)
         PDE_list = PDE_grid[:, 0].astype(float)
 
-        print(f"Debug: Length of PDE_list = {len(PDE_list)}, Expected PDE_length = {self.PDE_M}")
+    
         ind_after = 0
 
         while t < self.total_time:
@@ -98,9 +98,11 @@ class Hybrid:
             dataframe = self.CFunctions.calculate_propensity(PDE_list, SSA_list)
             fine_SSA_mass = self.CFunctions.fine_grid_ssa_mass(SSA_list)
 
-            alpha0 = np.sum(dataframe["propensity_list"])
+            alpha0 = np.sum(dataframe["propensity"])
+      
+           # print(alpha0)
             if alpha0 == 0:
-                PDE_list = self.NumericalClass.RK4_steps(PDE_list, dataframe["PDE_bool_list"], fine_SSA_mass)
+                PDE_list = self.NumericalClass.RK4_steps(PDE_list, dataframe["threshold_PDE"], fine_SSA_mass)
 
                 t = copy(td)
                 td += self.timestep
@@ -109,15 +111,14 @@ class Hybrid:
                 for time_index in range(ind_before, min(ind_after + 1, len(self.time_vector))):
                     PDE_grid[:, time_index] = PDE_list
                     SSA_grid[:, time_index] = SSA_list
-                    self.check_negative_values(PDE_list, "PDE_list")
-                    self.check_negative_values(SSA_list, "SSA_list")
+            
                     approx_mass[:, time_index], PDE_particles[:, time_index] = self.CFunctions.calculate_total_mass(PDE_list, SSA_list)
                 old_time = t
                 continue
 
             r1, r2, r3 = np.random.rand(3)
             tau = (1 / alpha0) * np.log(1 / r1)
-            alpha_cum = np.cumsum(dataframe["propensity_list"])
+            alpha_cum = np.cumsum(dataframe["propensity"])
             index = np.searchsorted(alpha_cum, r2 * alpha0)
             compartment_index = index % self.SSA_M
 
@@ -162,7 +163,7 @@ class Hybrid:
                 old_time = t
 
             else:
-                PDE_list = self.NumericalClass.RK4_steps(PDE_list, dataframe["PDE_bool_list"], fine_SSA_mass)
+                PDE_list = self.NumericalClass.RK4_steps(PDE_list, dataframe["threshold_PDE"], fine_SSA_mass)
 
                 t = copy(td)
                 td += self.timestep
