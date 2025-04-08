@@ -10,26 +10,30 @@ def wrapper():
 def test_data():
     # Provide consistent test inputs
     SSA_M = 5
-    PDE_list = np.array([0.2, 0.4, 0.6, 0.8, 1.0], dtype=np.float32)
-    SSA_list = np.array([100, 100, 2, 1, 3], dtype=np.int32)
+    PDE_list = np.array([1.2, 1.4, 0.4, 0.5, 0.6, 0.8, 0.1, 0.8, 1.0, 1.2], dtype=np.float32)
+    SSA_list = np.array([100, 1, 2, 1, 3], dtype=np.int32)
     degradation_rate_h = 0.1
-    PDE_M =2
+    PDE_M = 10
+    PDE_multiple = 2
     threshold = 0.5
     production_rate = 1.0
     gamma = 2.0
     jump_rate = 0.05
     h = 0.1
+    deltax = 0.1
     return {
         "SSA_M": SSA_M,
+        "PDE_M": PDE_M,
+        "PDE_multiple": PDE_multiple,
         "PDE_list": PDE_list,
         "SSA_list": SSA_list,
-        "PDE_M": PDE_M,
         "degradation_rate_h": degradation_rate_h,
         "threshold": threshold,
         "production_rate": production_rate,
         "gamma": gamma,
         "jump_rate": jump_rate,
-        "h": h
+        "h": h,
+        "deltax": deltax,
     }
 
 def test_propensity_output_keys(wrapper, test_data):
@@ -39,6 +43,7 @@ def test_propensity_output_keys(wrapper, test_data):
     expected_keys = [
         "propensity_list",
         "boolean_SSA_list",
+        "boolean_PDE_list",
         "combined_mass_list",
         "approximate_PDE_mass",
         "boolean_mass_list",
@@ -46,6 +51,14 @@ def test_propensity_output_keys(wrapper, test_data):
 
     for key in expected_keys:
         assert key in result, f"Missing key in output: {key}"
+
+def test_propensity_PDE_bool(wrapper,test_data):
+    """Check boolean_PDE_list contains only 0s and 1s."""
+    result = wrapper.calculate_propensity(**test_data)
+    boolean_PDE_list = result["boolean_PDE_list"]
+    print(f"PDE bool list: {boolean_PDE_list}")
+    assert np.all(np.isin(boolean_PDE_list, [0, 1])), "boolean_PDE_list should contain only 0s and 1s"
+
 
 def test_propensity_boolean_SSA_list(wrapper, test_data):
     """Check boolean_SSA_list contains only 0s and 1s."""
