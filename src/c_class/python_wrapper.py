@@ -239,9 +239,12 @@ class CFunctionWrapper:
                 - 'approximate_PDE_mass' (np.ndarray): PDE contribution.
                 - 'boolean_mass_list' (np.ndarray): Boolean mask where mass is present.
         """
-        PDE_list = np.array(PDE_list, dtype=np.float32)
-        SSA_list = np.array(SSA_list, dtype=np.int32)
-        propensity_list = np.zeros(6 * SSA_M, dtype=np.float32)  # Propensity list is 5 times the length.
+        # Before C function call, enforce:
+        PDE_list = np.ascontiguousarray(PDE_list, dtype=np.float32)  # Must match C's float
+        SSA_list = np.ascontiguousarray(SSA_list, dtype=np.int32)    # Must match C's int
+
+        # Output array must be pre-allocated with exact size
+        propensity_list = np.zeros(6 * SSA_M, dtype=np.float32)  # Explicit initialization
 
         # Correctly call the instance method with 'self' and pass 'h'
         boolean_SSA_list, _ = self.boolean_mass(SSA_M, SSA_M, SSA_M, PDE_list, h)
