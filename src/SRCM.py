@@ -4,48 +4,50 @@ import os
 import json
 from copy import deepcopy, copy
 import ctypes
-from production_project.clibrary_argtypes import set_clibrary_argtypes #Each data type for the c functions
-clibrary = ctypes.CDLL("c_class/clibrary.so") #import the c library
+from .c_class import CFunctionWrapper
 
-set_clibrary_argtypes(clibrary) #Import the data types for each c function
 
 class Hybrid:
-    
-    def __init__(self, domain_length, compartment_number, PDE_multiple, total_time, timestep, threshold, gamma, production_rate, degradation_rate, diffusion_rate, SSA_initial):
-        self.L = domain_length
-        self.SSA_M = compartment_number
-    
-        self.PDE_multiple = PDE_multiple
-        self.production_rate = production_rate
-        self.PDE_M = compartment_number * PDE_multiple
-        self.deltax = self.L / self.PDE_M
 
-        
-        self.total_time = total_time
-        self.timestep = timestep
-        self.threshold = threshold
-        self.gamma = gamma
-        self.degradation_rate = degradation_rate
-        self.h = self.L / compartment_number
-        self.diffusion_rate = diffusion_rate
-        self.d = diffusion_rate / (self.h**2)
-        self.threshold_conc = threshold / self.h
+    def __init__(self, input):
+        # Initialize parameters from input dictionary
+        self.L = input['domain_length']
+        self.SSA_M = input['compartment_number']
+        self.PDE_multiple = input['PDE_multiple']
+        self.total_time = input['total_time']
+        self.timestep = input['timestep']
+        self.threshold = input['threshold']
+        self.gamma = input['gamma']
+        self.degradation_rate = input['degradation_rate']
+        self.diffusion_rate = input['diffusion_rate']
+        self.h = input['h']
+        self.d = self.diffusion_rate / (self.h**2)
+        self.deltax = input['deltax']
+        self.production_rate = input['production_rate']
+        self.threshold_conc = input['threshold_conc']
         self.SSA_X = np.linspace(0, self.L - self.h, self.SSA_M)
+        self.PDE_M = self.SSA_M * self.PDE_multiple
         self.PDE_X = np.linspace(0, self.L, self.PDE_M)
 
+    
+        # Validate SSA_initial
+        SSA_initial = input.get('SSA_initial')
         if not isinstance(SSA_initial, np.ndarray):
-            raise ValueError("SSA initial is not a np array")
-        elif not len(SSA_initial) == compartment_number:
-            raise ValueError("The length of the SSA initial is not the same as compartment number")
-        elif not np.issubdtype(SSA_initial.dtype, np.integer):
-            raise ValueError("The SSA initial is not an integer")
-        else:
-            self.SSA_initial = SSA_initial.astype(int)
+            raise ValueError("SSA_initial must be a numpy array.")
+        if len(SSA_initial) != self.SSA_M:
+            raise ValueError("The length of SSA_initial must match the number of compartments (SSA_M).")
+        if not np.issubdtype(SSA_initial.dtype, np.integer):
+            raise ValueError("SSA_initial must contain integer values.")
+        self.SSA_initial = SSA_initial.astype(int)
 
+        # Initialize additional attributes
         self.PDE_initial_conditions = np.zeros_like(self.PDE_X, dtype=np.float64)
-        self.steady_state = production_rate / degradation_rate
+        self.steady_state = self.production_rate / self.degradation_rate
         self.DX_NEW = self.create_finite_difference()
-        self.time_vector = np.arange(0, total_time, timestep)
+        self.time_vector = np.arange(0, self.total_time, self.timestep)
+
+        self.CFunctions = CFunctionWrapper()
+
         print("Successfully initialized the hybrid model")
         print(f"The threshold concentration is: {self.threshold_conc}")
 
@@ -69,22 +71,21 @@ class Hybrid:
     def calculate_total_mass(self, PDE_list: np.ndarray, SSA_list: np.ndarray) -> np.ndarray:
         """This will calculate the total mass of discrete + continuous"""
         
-
         #We will use c functions here
 
-        return UtilityFunctions.calculate_total_mass(PDE_list, SSA_list, self.use_c_functions,self.PDE_multiple, self.deltax, self.SSA_M )
+        return self.CFunctions.calculate_total_mass(PDE_list, SSA_list, self.PDE_multiple, self.deltax, self.SSA_M)
       
     def threshold_boolean(self, combined_list: np.ndarray) -> np.ndarray:
         """Generate a boolean list based on the threshold"""
         #We also use c functions here
 
-        compartment_bool_list, PDE_bool_list =  UtilityFunctions.threshold_boolean(combined_list, self.threshold, self.PDE_multiple ,self.SSA_M)
+        compartment_bool_list, PDE_bool_list =  self.CFunctions.boolean_threshold_mass(self.SSA_M, self.PDE_multiple, combined_list, self.h, self.threshold)
 
         return compartment_bool_list, PDE_bool_list
 
     def boolean_if_less_mass(self, PDE_list: np.ndarray) -> np.ndarray: 
-        # we use c functions here too
-        return UtilityFunctions.boolean_if_less_mass(PDE_list, self.h, self.PDE_multiple, self.SSA_M)
+        # we use c functions here too.
+        return self.CFunctions.boolean_low_limit(self.SSA_M, self.PDE_multiple, PDE_list, self.h)
         
 
 
@@ -106,7 +107,7 @@ class Hybrid:
 
     def fine_grid_SSA_mass(self, SSA_mass):
         """Convert the SSA_mass to the same fine resolution as the PDE"""
-        return UtilityFunctions.fine_grid_SSA_mass(SSA_mass, self.PDE_X, self.SSA_M, self.PDE_multiple, self.h)
+        return self.CFunctions.fine_grid_ssa_mass(SSA_mass, self.PDE_M, self.SSA_M, )
     
     def RK4(self, old_vector, boolean_threshold, SSA_fine_mass, dt=None):
 
