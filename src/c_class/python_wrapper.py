@@ -157,7 +157,7 @@ class CFunctionWrapper:
 
         return boolean_PDE_list, boolean_SSA_list
 
-    def boolean_threshold_mass(self, SSA_m, PDE_m, PDE_multiple, combined_list, h, threshold):
+    def boolean_threshold_mass(self, SSA_m, PDE_multiple, combined_list, h, threshold):
         """
         Computes boolean masks based on a threshold for total (PDE + SSA) mass.
 
@@ -176,11 +176,16 @@ class CFunctionWrapper:
         """
         combined_list = np.array(combined_list, dtype=np.float32)
         compartment_bool_list = np.zeros(SSA_m, dtype=np.int32)
-        PDE_bool_list = np.zeros(PDE_m, dtype=np.int32)
+
+        PDE_list = np.array(PDE_list, dtype=np.float32)
+        PDE_length = SSA_m*PDE_multiple
+        assert len(PDE_list) == PDE_length, f"Not the right length"
+
+        PDE_bool_list = np.zeros(PDE_length, dtype=np.int32)
 
         self.lib.BooleanThresholdMass(
             ctypes.c_int(SSA_m),
-            ctypes.c_int(PDE_m),
+            ctypes.c_int(PDE_length),
             ctypes.c_int(PDE_multiple),
             combined_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             ctypes.c_float(h),
@@ -219,7 +224,7 @@ class CFunctionWrapper:
 
         return fine_SSA_Mass
 
-    def calculate_propensity(self, SSA_M,PDE_M, PDE_multiple, PDE_list, SSA_list, degradation_rate_h, threshold, production_rate, gamma, jump_rate, h, deltax):
+    def calculate_propensity(self, SSA_M, PDE_multiple, PDE_list, SSA_list, degradation_rate_h, threshold, production_rate, gamma, jump_rate, h, deltax):
             """
             Computes the reaction propensities in each SSA compartment, using PDE influence and other parameters.
 
@@ -243,8 +248,12 @@ class CFunctionWrapper:
                     - 'boolean_mass_list' (np.ndarray): Boolean mask where mass is present.
             """
             # Debug: Print sizes of inputs
-          
-            assert len(PDE_list) == SSA_M*PDE_multiple, f"Not the right length"
+
+
+            PDE_length = SSA_M*PDE_multiple #The length of the PDE list
+            assert len(PDE_list) == PDE_length, f"Not the right length"
+    
+
 
             # Before C function call, enforce:
             PDE_list = np.ascontiguousarray(PDE_list, dtype=np.float32)  # Must match C's float
@@ -254,12 +263,12 @@ class CFunctionWrapper:
             propensity_list = np.zeros(6 * SSA_M, dtype=np.float32)  # Explicit initialization
 
             # Correctly call the instance method with 'self' and pass 'h'
-            boolean_SSA_list, Boolean_PDE_list = self.boolean_mass(SSA_M, PDE_M, PDE_multiple, PDE_list, h)
+            boolean_SSA_list, Boolean_PDE_list = self.boolean_mass(SSA_M, PDE_length, PDE_multiple, PDE_list, h)
 
-            print(f"Boolean_SSA_list in python is: {boolean_SSA_list}")
+            #print(f"Boolean_SSA_list in python is: {boolean_SSA_list}")
 
             # Debug: Print sizes of intermediate results
-            print(f"boolean_SSA_list size: {len(boolean_SSA_list)}")
+            #print(f"boolean_SSA_list size: {len(boolean_SSA_list)}")
 
             # Correctly call the instance method with 'self'
             combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list, PDE_multiple, deltax, SSA_M)
@@ -267,14 +276,14 @@ class CFunctionWrapper:
             combined_mass_list = np.array(combined_mass_list, dtype=np.float32)
 
             # Debug: Print sizes of combined mass and approximate PDE mass
-            print(f"combined_mass_list size: {len(combined_mass_list)}")
-            print(f"approximate_PDE_mass size: {len(approximate_PDE_mass)}")
+            #print(f"combined_mass_list size: {len(combined_mass_list)}")
+            #print(f"approximate_PDE_mass size: {len(approximate_PDE_mass)}")
 
             # Correctly call the instance method with 'self'
-            _, boolean_mass_list = self.boolean_threshold_mass(SSA_M, PDE_M, PDE_multiple, combined_mass_list, h, threshold)
+            _, boolean_mass_list = self.boolean_threshold_mass(SSA_M, PDE_length, PDE_multiple, combined_mass_list, h, threshold)
 
             # Debug: Print size of boolean_mass_list
-            print(f"boolean_mass_list size: {len(boolean_mass_list)}")
+            #print(f"boolean_mass_list size: {len(boolean_mass_list)}")
 
             self.lib.CalculatePropensity(
                 ctypes.c_int(SSA_M),
