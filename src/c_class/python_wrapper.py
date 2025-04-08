@@ -216,7 +216,7 @@ class CFunctionWrapper:
 
         return fine_SSA_Mass
 
-    def calculate_propensity(self, SSA_M, PDE_list, SSA_list,PDE_M, degradation_rate_h, threshold, production_rate, gamma, jump_rate, h):
+    def calculate_propensity(self, SSA_M,PDE_M, PDE_multiple, PDE_list, SSA_list, degradation_rate_h, threshold, production_rate, gamma, jump_rate, h, deltax):
             """
             Computes the reaction propensities in each SSA compartment, using PDE influence and other parameters.
 
@@ -240,8 +240,9 @@ class CFunctionWrapper:
                     - 'boolean_mass_list' (np.ndarray): Boolean mask where mass is present.
             """
             # Debug: Print sizes of inputs
-           
-            assert len(PDE_list) == SSA_M*PDE_M, f"Not the right length"
+          
+            assert len(PDE_list) == SSA_M*PDE_multiple, f"Not the right length"
+
             # Before C function call, enforce:
             PDE_list = np.ascontiguousarray(PDE_list, dtype=np.float32)  # Must match C's float
             SSA_list = np.ascontiguousarray(SSA_list, dtype=np.int32)    # Must match C's int
@@ -250,7 +251,7 @@ class CFunctionWrapper:
             propensity_list = np.zeros(6 * SSA_M, dtype=np.float32)  # Explicit initialization
 
             # Correctly call the instance method with 'self' and pass 'h'
-            boolean_SSA_list, _ = self.boolean_mass(SSA_M, SSA_M, 1, PDE_list, h)
+            boolean_SSA_list, Boolean_PDE_list = self.boolean_mass(SSA_M, PDE_M, PDE_multiple, PDE_list, h)
 
             print(f"Boolean_SSA_list in python is: {boolean_SSA_list}")
 
@@ -258,7 +259,7 @@ class CFunctionWrapper:
             print(f"boolean_SSA_list size: {len(boolean_SSA_list)}")
 
             # Correctly call the instance method with 'self'
-            combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list, SSA_M, h, SSA_M)
+            combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list, PDE_multiple, deltax, SSA_M)
 
             combined_mass_list = np.array(combined_mass_list, dtype=np.float32)
 
@@ -267,7 +268,7 @@ class CFunctionWrapper:
             print(f"approximate_PDE_mass size: {len(approximate_PDE_mass)}")
 
             # Correctly call the instance method with 'self'
-            _, boolean_mass_list = self.boolean_threshold_mass(SSA_M, SSA_M, SSA_M, combined_mass_list, h, threshold)
+            _, boolean_mass_list = self.boolean_threshold_mass(SSA_M, PDE_M, PDE_multiple, combined_mass_list, h, threshold)
 
             # Debug: Print size of boolean_mass_list
             print(f"boolean_mass_list size: {len(boolean_mass_list)}")
@@ -291,6 +292,7 @@ class CFunctionWrapper:
             return {
                 "propensity_list": propensity_list,
                 "boolean_SSA_list": boolean_SSA_list,
+                "boolean_PDE_list": Boolean_PDE_list,
                 "combined_mass_list": combined_mass_list,
                 "approximate_PDE_mass": approximate_PDE_mass,
                 "boolean_mass_list": boolean_mass_list
