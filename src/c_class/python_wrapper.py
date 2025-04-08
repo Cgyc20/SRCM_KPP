@@ -242,3 +242,28 @@ class CFunctionWrapper:
             "approximate_PDE_mass": approximate_PDE_mass,
             "boolean_mass_list": compartment_bool_list
         }
+    
+
+class Numerical_wrapper:
+
+    def __init__(self, params, library_path="C_Numerical_functions.so"):
+        """
+        Initialize the Numerical_wrapper with parameters.
+
+        Parameters:
+            params (dict): Dictionary containing the following keys:
+                - PDE_M (int): Number of PDE grid points.
+                - diffusion_rate (float): Diffusion rate for the PDE system.
+                - degradation_rate (float): Degradation rate for the PDE system.
+                - production_rate (float): Production rate for the PDE system.
+                - timestep (float): Time step size for numerical integration.
+            library_path (str): Path to the compiled C library (default is "C_functions.so").
+        """
+        self.PDE_M = params['PDE_M']
+        self.diffusion_rate = params['diffusion_rate']
+        self.degradation_rate = params['degradation_rate']
+        self.production_rate = params['production_rate']
+        self.timestep = params['timestep']
+
+
+        
