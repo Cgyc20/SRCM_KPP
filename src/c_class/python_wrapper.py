@@ -216,7 +216,7 @@ class CFunctionWrapper:
 
         return fine_SSA_Mass
 
-    def calculate_propensity(self, SSA_M, PDE_list, SSA_list, degradation_rate_h, threshold, production_rate, gamma, jump_rate):
+    def calculate_propensity(self, SSA_M, PDE_list, SSA_list, degradation_rate_h, threshold, production_rate, gamma, jump_rate, h):
         """
         Computes the reaction propensities in each SSA compartment, using PDE influence and other parameters.
 
@@ -229,22 +229,28 @@ class CFunctionWrapper:
             production_rate (float): Rate of production.
             gamma (float): Nonlinear scaling or interaction parameter.
             jump_rate (float): Rate of stochastic jumps.
+            h (float): Grid spacing.
 
         Returns:
             dict: Contains:
                 - 'propensity_list' (np.ndarray): Propensity values.
-                - 'boolean_SSA_list' (np.ndarray): Active SSA compartments.
+                - 'boolean_SSA_list' (np.ndarray): Active SSA compartments, controlling production.
                 - 'combined_mass_list' (np.ndarray): Combined mass at each compartment.
                 - 'approximate_PDE_mass' (np.ndarray): PDE contribution.
                 - 'boolean_mass_list' (np.ndarray): Boolean mask where mass is present.
         """
         PDE_list = np.array(PDE_list, dtype=np.float32)
         SSA_list = np.array(SSA_list, dtype=np.int32)
-        propensity_list = np.zeros(SSA_M, dtype=np.float32)
-        boolean_SSA_list = np.zeros(SSA_M, dtype=np.int32)
-        combined_mass_list = np.zeros(SSA_M, dtype=np.float32)
-        approximate_PDE_mass = np.zeros(SSA_M, dtype=np.float32)
-        boolean_mass_list = np.zeros(SSA_M, dtype=np.int32)
+        propensity_list = np.zeros(6 * SSA_M, dtype=np.float32)  # Propensity list is 5 times the length.
+
+        # Correctly call the instance method with 'self' and pass 'h'
+        boolean_SSA_list, _ = self.boolean_mass(SSA_M, SSA_M, SSA_M, PDE_list, h)
+
+        # Correctly call the instance method with 'self'
+        combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list, SSA_M, h, SSA_M)
+
+        # Correctly call the instance method with 'self'
+        _, boolean_mass_list = self.boolean_threshold_mass(SSA_M, SSA_M, SSA_M, combined_mass_list, h, threshold)
 
         self.lib.CalculatePropensity(
             ctypes.c_int(SSA_M),
