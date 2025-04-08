@@ -10,7 +10,7 @@ def wrapper():
 def test_data():
     # Provide consistent test inputs
     SSA_M = 5
-    PDE_list = np.array([1.2, 1.4, 0.4, 0.5, 0.6, 0.8, 0.1, 0.8, 1.0, 1.2], dtype=np.float32)
+    PDE_list = np.array([1.2, 1.4, 0.4, 0.5, 0.6, 0.8, 0.1, 0.8, 11.0, 12.0], dtype=np.float32)
     SSA_list = np.array([100, 1, 2, 1, 3], dtype=np.int32)
     degradation_rate_h = 0.1
     PDE_multiple = 2
@@ -102,28 +102,23 @@ def test_propensity_output_shapes_and_types(wrapper, test_data):
     assert result["approximate_PDE_mass"].dtype == np.float32, "Wrong dtype for 'approximate_PDE_mass'"
     assert result["boolean_mass_list"].dtype == np.int32, "Wrong dtype for 'boolean_mass_list'"
 
-
-def test_propensity_numerical(wrapper,test_data):
-    """This will actually test the correct output"""
+def test_propensity_combined_mass(wrapper, test_data):
+    """Check combined_mass_list is correct."""
     result = wrapper.calculate_propensity(**test_data)
-
-    propensity_list = result["propensity_list"]
-    boolean_SSA_mass_list = result["boolean_SSA_list"]
     combined_mass_list = result["combined_mass_list"]
-    approximate_PDE_mass = result["approximate_PDE_mass"]
-    boolean_mass_list = result["boolean_mass_list"]
-
-    # print(f"propensity_list: {propensity_list}")
-    # print(f"boolean_SSA_mass_list: {boolean_SSA_mass_list}")
-    # print(f"combined_mass_list: {combined_mass_list}")
-    # print(f"approximate_PDE_mass: {approximate_PDE_mass}")
-    # print(f"boolean_mass_list: {boolean_mass_list}")
-    # #Now print dtypes
-    # print(f"propensity_list dtype: {propensity_list.dtype}")
-    # print(f"boolean_SSA_mass_list dtype: {boolean_SSA_mass_list.dtype}")
-    # print(f"combined_mass_list dtype: {combined_mass_list.dtype}")
-    # print(f"approximate_PDE_mass dtype: {approximate_PDE_mass.dtype}")
-    # print(f"boolean_mass_list dtype: {boolean_mass_list.dtype}")
-
+    #print(combined_mass_list)
     SSA_M = test_data["SSA_M"]
-    assert propensity_list.shape == (6*SSA_M,)
+    combined_mass_query = np.array([100.26, 1.09, 2.14, 1.09, 5.3], dtype=np.float32) #Expected output
+    assert np.array_equal(combined_mass_list, combined_mass_query), "combined_mass_list should be [100.26, 1.09, 2.14, 1.09, 5.3]"
+
+
+def test_propensity_boolean_SSA(wrapper,test_data):
+    """Check boolean_SSA_list contains only 0s and 1s."""
+    result = wrapper.calculate_propensity(**test_data)
+    boolean_SSA_list = result["boolean_SSA_list"]
+
+    boolean_SSA_Query = np.array([0, 0, 0, 0, 1], dtype=np.int32) #Expected output. Cause last two points of PDE are greater than 1/h!
+    assert np.array_equal(boolean_SSA_list, boolean_SSA_Query), "boolean_SSA_list should be [0, 0, 0, 0, 1]"
+
+
+
