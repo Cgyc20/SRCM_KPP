@@ -43,7 +43,7 @@ class Hybrid:
         # Initialize additional attributes
         self.PDE_initial_conditions = np.zeros_like(self.PDE_X, dtype=np.float64)
         self.steady_state = self.production_rate / self.degradation_rate
-        self.DX_NEW = self.create_finite_difference()
+
         self.time_vector = np.arange(0, self.total_time, self.timestep)
 
         Cfunctions_params = {'SSA_M': self.SSA_M,
@@ -65,7 +65,7 @@ class Hybrid:
                             'deltax': self.deltax,
                             'timestep': self.timestep,}
         
-        self.CFunctions = CFunctionWrapper(Cfunctions_params)
+        self.CFunctions = CFunctionWrapper(Cfunctions_params,"src/c_class/C_functions.so")
     
         self.NumericalClass = Numerical_wrapper(Numerical_params)
 
@@ -89,22 +89,18 @@ class Hybrid:
         PDE_particles = np.zeros_like(approx_mass)
         SSA_list = SSA_grid[:, 0].astype(int)
         PDE_list = PDE_grid[:, 0].astype(float)
+
+        print(f"Debug: Length of PDE_list = {len(PDE_list)}, Expected PDE_length = {self.PDE_M}")
         ind_after = 0
 
-
-
         while t < self.total_time:
-            #total_propensity = self.propensity_calculation(SSA_list, PDE_list)
-            
-            fine_SSA_mass = self.fine_grid_SSA_mass(SSA_list)
-            combined_mass, approx_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list)
-            SSA_boolean_list, PDE_boolean_threshold = self.threshold_boolean(combined_mass)
-            total_propensity = self.propensity_calculation(SSA_list, PDE_list)
-            #total_propensity = self.propensity_calculationC(SSA_list, PDE_list, combined_mass, approx_PDE_mass,SSA_boolean_list)
-            alpha0 = np.sum(total_propensity)
+            # Use the correct instance for propensity calculation
+            dataframe = self.CFunctions.calculate_propensity(PDE_list, SSA_list)
+            fine_SSA_mass = self.CFunctions.fine_grid_ssa_mass(SSA_list)
+
+            alpha0 = np.sum(dataframe["propensity_list"])
             if alpha0 == 0:
-                PDE_list = self.RK4(PDE_list, PDE_boolean_threshold, fine_SSA_mass)
-              
+                PDE_list = self.NumericalClass.RK4_steps(PDE_list, dataframe["PDE_bool_list"], fine_SSA_mass)
 
                 t = copy(td)
                 td += self.timestep
@@ -115,13 +111,13 @@ class Hybrid:
                     SSA_grid[:, time_index] = SSA_list
                     self.check_negative_values(PDE_list, "PDE_list")
                     self.check_negative_values(SSA_list, "SSA_list")
-                    approx_mass[:, time_index], PDE_particles[:, time_index] = self.calculate_total_mass(PDE_list, SSA_list)
+                    approx_mass[:, time_index], PDE_particles[:, time_index] = self.CFunctions.calculate_total_mass(PDE_list, SSA_list)
                 old_time = t
                 continue
 
             r1, r2, r3 = np.random.rand(3)
             tau = (1 / alpha0) * np.log(1 / r1)
-            alpha_cum = np.cumsum(total_propensity)
+            alpha_cum = np.cumsum(dataframe["propensity_list"])
             index = np.searchsorted(alpha_cum, r2 * alpha0)
             compartment_index = index % self.SSA_M
 
@@ -131,9 +127,7 @@ class Hybrid:
                     if r3 < 0.5:
                         SSA_list[index] -= 1
                         SSA_list[index - 1] += 1
-                    
                         reaction_type = "diffusion"
-
                     else:
                         SSA_list[index] -= 1
                         SSA_list[index + 1] += 1
@@ -163,29 +157,23 @@ class Hybrid:
                     SSA_list[compartment_index] -= 1  # D -> C
                     PDE_list[self.PDE_multiple * compartment_index: self.PDE_multiple * (compartment_index + 1)] += 1 / self.h
                     reaction_type = "conversion_D_to_C"
-      
 
-                # PDE_list = self.RK4(PDE_list, PDE_boolean_threshold, fine_SSA_mass,tau)
                 t += tau
                 old_time = t
 
-
             else:
-                PDE_list = self.RK4(PDE_list, PDE_boolean_threshold, fine_SSA_mass)
-
+                PDE_list = self.NumericalClass.RK4(PDE_list, dataframe["PDE_bool_list"], fine_SSA_mass)
 
                 t = copy(td)
                 td += self.timestep
                 ind_before = np.searchsorted(self.time_vector, old_time, 'right')
-                # print(f"Ind before in PDE {ind_before}")
                 ind_after = np.searchsorted(self.time_vector, t, 'left')
-                # print(f"ind_after - ind_after in PDE {ind_after-ind_before}")
                 for time_index in range(ind_before, min(ind_after + 1, len(self.time_vector))):
                     PDE_grid[:, time_index] = PDE_list
                     SSA_grid[:, time_index] = SSA_list
                     self.check_negative_values(PDE_list, "PDE_list")
                     self.check_negative_values(SSA_list, "SSA_list")
-                    approx_mass[:, time_index], PDE_particles[:, time_index] = self.calculate_total_mass(PDE_list, SSA_list)
+                    approx_mass[:, time_index], PDE_particles[:, time_index] = self.CFunctions.calculate_total_mass(PDE_list, SSA_list)
 
                 old_time = t
 
@@ -194,7 +182,7 @@ class Hybrid:
     def run_simulation(self, number_of_repeats: int) -> np.ndarray:
         PDE_initial, SSA_initial = self.create_initial_dataframe()
         approx_mass_initial = np.zeros_like(SSA_initial)
-        approx_mass_initial[:, 0] = self.calculate_total_mass(PDE_initial[:, 0], SSA_initial[:, 0])[0]
+        approx_mass_initial[:, 0], _ = self.CFunctions.calculate_total_mass(PDE_initial[:, 0], SSA_initial[:, 0])
         SSA_sum = np.zeros_like(SSA_initial)
         PDE_sum = np.zeros_like(PDE_initial)
         approx_mass_sum = np.zeros_like(approx_mass_initial)
