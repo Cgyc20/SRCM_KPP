@@ -109,35 +109,35 @@ class CFunctionWrapper:
 
     def boolean_low_limit(self, PDE_list):
         """
-        Computes boolean masks for significant PDE and SSA mass.
+        Computes boolean masks for significant PDE and SSA mass based on the minimum mass condition.
 
         Parameters:
             PDE_list (array-like): PDE concentration values.
 
         Returns:
             tuple:
-                - boolean_PDE_list (np.ndarray): Mask for PDE domain (0 if mass < 1/h, else 1).
-                - boolean_SSA_list (np.ndarray): Mask for SSA compartments (0 if any PDE bool is 0).
+                - min_mass_PDE_bool_list (np.ndarray): Mask for PDE domain (0 if mass < 1/h, else 1).
+                - min_mass_compartment_bool_list (np.ndarray): Mask for SSA compartments (0 if any PDE bool is 0).
         """
         PDE_list = np.array(PDE_list, dtype=np.float32)
         PDE_length = self.SSA_M * self.PDE_multiple
         
         assert len(PDE_list) == PDE_length, "PDE_list length mismatch."
 
-        boolean_PDE_list = np.zeros(PDE_length, dtype=np.int32)
-        boolean_SSA_list = np.zeros(self.SSA_M, dtype=np.int32)
+        min_mass_PDE_bool_list = np.zeros(PDE_length, dtype=np.int32)
+        min_mass_compartment_bool_list = np.zeros(self.SSA_M, dtype=np.int32)
 
         self.lib.BooleanMass(
             ctypes.c_int(self.SSA_M),
             ctypes.c_int(PDE_length),
             ctypes.c_int(self.PDE_multiple),
             PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            boolean_PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-            boolean_SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            min_mass_PDE_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            min_mass_compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             ctypes.c_float(self.h)
         )
 
-        return boolean_PDE_list, boolean_SSA_list
+        return min_mass_PDE_bool_list, min_mass_compartment_bool_list
 
     def boolean_threshold_mass(self, combined_list):
         """
@@ -148,13 +148,13 @@ class CFunctionWrapper:
 
         Returns:
             tuple:
-                - compartment_bool_list (np.ndarray): Mask for SSA compartments (1 if mass > threshold).
-                - PDE_bool_list (np.ndarray): Mask for PDE domain (1 if mass > threshold).
+                - threshold_compartment_bool_list (np.ndarray): Mask for SSA compartments (1 if mass > threshold).
+                - threshold_PDE_bool_list (np.ndarray): Mask for PDE domain (1 if mass > threshold).
         """
         combined_list = np.array(combined_list, dtype=np.float32)
-        compartment_bool_list = np.zeros(self.SSA_M, dtype=np.int32)
+        threshold_compartment_bool_list = np.zeros(self.SSA_M, dtype=np.int32)
         PDE_length = self.SSA_M * self.PDE_multiple
-        PDE_bool_list = np.zeros(PDE_length, dtype=np.int32)
+        threshold_PDE_bool_list = np.zeros(PDE_length, dtype=np.int32)
 
         self.lib.BooleanThresholdMass(
             ctypes.c_int(self.SSA_M),
@@ -162,12 +162,12 @@ class CFunctionWrapper:
             ctypes.c_int(self.PDE_multiple),
             combined_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             ctypes.c_float(self.h),
-            compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
-            PDE_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            threshold_compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            threshold_PDE_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             ctypes.c_float(self.threshold)
         )
 
-        return compartment_bool_list, PDE_bool_list
+        return threshold_compartment_bool_list, threshold_PDE_bool_list
 
     def fine_grid_ssa_mass(self, SSA_mass):
         """
@@ -205,34 +205,35 @@ class CFunctionWrapper:
         Returns:
             dict: Contains:
                 - 'propensity_list' (np.ndarray): Propensity values.
-                - 'boolean_SSA_list' (np.ndarray): Active SSA compartments.
-                - 'boolean_PDE_list' (np.ndarray): Active PDE compartments.
+                - 'min_mass_compartment_bool_list' (np.ndarray): Active SSA compartments based on minimum mass.
+                - 'min_mass_PDE_bool_list' (np.ndarray): Active PDE compartments based on minimum mass.
+                - 'threshold_compartment_bool_list' (np.ndarray): Active SSA compartments based on threshold.
+                - 'threshold_PDE_bool_list' (np.ndarray): Active PDE compartments based on threshold.
                 - 'combined_mass_list' (np.ndarray): Combined mass at each compartment.
                 - 'approximate_PDE_mass' (np.ndarray): PDE contribution.
-                - 'boolean_mass_list' (np.ndarray): Boolean mask for mass presence.
         """
         PDE_list = np.array(PDE_list, dtype=np.float32)
         SSA_list = np.array(SSA_list, dtype=np.int32)
         propensity_list = np.zeros(6 * self.SSA_M, dtype=np.float32)
 
-        boolean_PDE_list, boolean_SSA_list = self.boolean_low_limit(PDE_list)
-        
-        print(f"boolean_SSA_list: {boolean_SSA_list}")
+        # Compute boolean masks based on minimum mass
+        min_mass_PDE_bool_list, min_mass_compartment_bool_list = self.boolean_low_limit(PDE_list)
 
+        # Compute combined mass and approximate PDE mass
         combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list)
 
-        
-        compartment_bool_list, PDE_bool_list = self.boolean_threshold_mass(combined_mass_list)
-        print(f"compartment bool list: {compartment_bool_list}")
+        # Compute boolean masks based on threshold
+        threshold_compartment_bool_list, threshold_PDE_bool_list = self.boolean_threshold_mass(combined_mass_list)
+
         self.lib.CalculatePropensity(
             ctypes.c_int(self.SSA_M),
             PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             propensity_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            threshold_compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             combined_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             approximate_PDE_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            threshold_compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             ctypes.c_float(self.degradation_rate_h),
             ctypes.c_float(self.threshold),
             ctypes.c_float(self.production_rate),
@@ -242,12 +243,12 @@ class CFunctionWrapper:
 
         return {
             "propensity_list": propensity_list,
-            "boolean_SSA_list": boolean_SSA_list,
-            "boolean_PDE_list": boolean_PDE_list,
+            "min_mass_compartment_bool_list": min_mass_compartment_bool_list,
+            "min_mass_PDE_bool_list": min_mass_PDE_bool_list,
+            "threshold_compartment_bool_list": threshold_compartment_bool_list,
+            "threshold_PDE_bool_list": threshold_PDE_bool_list,
             "combined_mass_list": combined_mass_list,
             "approximate_PDE_mass": approximate_PDE_mass,
-            "boolean_mass_list": compartment_bool_list,
-            "PDE_bool_list": PDE_bool_list
         }
     
 
