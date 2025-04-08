@@ -121,6 +121,7 @@ class CFunctionWrapper:
         """
         PDE_list = np.array(PDE_list, dtype=np.float32)
         PDE_length = self.SSA_M * self.PDE_multiple
+        
         assert len(PDE_list) == PDE_length, "PDE_list length mismatch."
 
         boolean_PDE_list = np.zeros(PDE_length, dtype=np.int32)
@@ -215,15 +216,20 @@ class CFunctionWrapper:
         propensity_list = np.zeros(6 * self.SSA_M, dtype=np.float32)
 
         boolean_PDE_list, boolean_SSA_list = self.boolean_low_limit(PDE_list)
-        combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list)
-        compartment_bool_list, PDE_bool_list = self.boolean_threshold_mass(combined_mass_list)
+        
+        print(f"boolean_SSA_list: {boolean_SSA_list}")
 
+        combined_mass_list, approximate_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list)
+
+        
+        compartment_bool_list, PDE_bool_list = self.boolean_threshold_mass(combined_mass_list)
+        print(f"compartment bool list: {compartment_bool_list}")
         self.lib.CalculatePropensity(
             ctypes.c_int(self.SSA_M),
             PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             propensity_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
-            boolean_SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
             combined_mass_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             approximate_PDE_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
             compartment_bool_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
@@ -240,7 +246,8 @@ class CFunctionWrapper:
             "boolean_PDE_list": boolean_PDE_list,
             "combined_mass_list": combined_mass_list,
             "approximate_PDE_mass": approximate_PDE_mass,
-            "boolean_mass_list": compartment_bool_list
+            "boolean_mass_list": compartment_bool_list,
+            "PDE_bool_list": PDE_bool_list
         }
     
 
