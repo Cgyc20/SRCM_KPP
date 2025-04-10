@@ -175,7 +175,7 @@ void CalculatePropensitySSA(int SSA_M, int *SSA_list, float *propensity_list, fl
         propensity_list[i] = 0.0f; //We want to set all propensity to be zero
     }
 
-    propensity_list[i] = jump_rate*SSA_list[0];
+    propensity_list[0] = jump_rate*SSA_list[0];
     for (int i = 1; i<SSA_M-1;i++){
         propensity_list[i] = 2.0f*jump_rate*SSA_list[i]; //setting the internal propensity for diffusion
     }
