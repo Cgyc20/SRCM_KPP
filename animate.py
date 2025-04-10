@@ -13,6 +13,7 @@ class HybridSimulationPlotter:
     def load_data(self):
         self.hybrid_data = np.load(self.filename + "Hybrid_data.npz")
         self.ssa_data = np.load(self.filename + "Pure_SSA_data.npz")
+        self.pde_data = np.load(self.filename + "PDE_data.npz")  # Load pure PDE data
 
         with open(self.filename + "parameters.json") as f:
             self.parameters = json.load(f)
@@ -36,6 +37,9 @@ class HybridSimulationPlotter:
         self.PDE_X = self.hybrid_data["PDE_X"]
         self.SSA_grid = self.ssa_data["SSA_grid"]
 
+        # Extract pure PDE data
+        self.pure_pde_grid = self.pde_data["PDE_grid"]
+
     def calculate_total_mass(self):
         return np.sum(self.combined_grid, axis=0) * self.deltax
 
@@ -56,6 +60,7 @@ class HybridSimulationPlotter:
         # Line plots
         line_pde, = ax.plot(self.PDE_X, self.C_grid[:, 0], 'g--', label='Hybrid PDE', linewidth=2)
         line_combined, = ax.plot(self.PDE_X, self.combined_grid[:, 0], 'k--', label='Combined', linewidth=2)
+        line_pure_pde, = ax.plot(self.PDE_X, self.pure_pde_grid[:, 0], 'r-', label='Pure PDE', linewidth=2)  # Pure PDE
 
         # Reference lines
         ax.axhline(y=self.threshold_conc, color='purple', linestyle='--', label='Threshold', linewidth=1.5)
@@ -67,7 +72,7 @@ class HybridSimulationPlotter:
         ax.set_ylabel('Species Concentration')
         ax.set_title('Hybrid Simulation')
         ax.set_xlim(0, self.domain_length)
-        y_max = max(np.max(self.combined_grid), steady_state, self.threshold_conc) * 1.1
+        y_max = max(np.max(self.combined_grid), steady_state, self.threshold_conc, np.max(self.pure_pde_grid)) * 1.1
         ax.set_ylim(-20, y_max)
 
         time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, verticalalignment='top')
@@ -79,8 +84,9 @@ class HybridSimulationPlotter:
                 bar.set_height(height)
             line_pde.set_ydata(self.C_grid[:, frame])
             line_combined.set_ydata(self.combined_grid[:, frame])
+            line_pure_pde.set_ydata(self.pure_pde_grid[:, frame])  # Update pure PDE line
             time_text.set_text(f'Time: {self.time_vector[frame]:.2f}')
-            return (*bar_hybrid_ssa, *bar_pure_ssa, line_combined, line_pde, time_text)
+            return (*bar_hybrid_ssa, *bar_pure_ssa, line_combined, line_pde, line_pure_pde, time_text)
 
         ani = FuncAnimation(fig, update, frames=len(self.time_vector), interval=40)
 
