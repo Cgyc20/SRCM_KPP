@@ -117,7 +117,7 @@ class SSA:
         print("Simulation completed")
         return filled_SSA_grid
 
-    def save_simulation_data(self, filled_SSA_grid, datadirectory='data'):
+    def save_simulation_data(self, filled_SSA_grid, filename='Pure_SSA_data.npz', datadirectory='data'):
         if not os.path.exists(datadirectory):
             os.makedirs(datadirectory)
 
@@ -132,8 +132,8 @@ class SSA:
             'initial_SSA': self.SSA_initial.tolist(),
             'h': self.h,
         }
-
-        np.savez(os.path.join(datadirectory, 'Pure_SSA_data'),
+        
+        np.savez(os.path.join(datadirectory, filename),
                  SSA_grid=filled_SSA_grid,
                  time_vector=self.time_vector,
                  SSA_X=self.SSA_X
@@ -142,6 +142,6 @@ class SSA:
         with open(os.path.join(datadirectory, "parameters_pure_SSA.json"), 'w') as params_file:
             json.dump(params, params_file, indent=4)
 
-        print("Data saved successfully")
+        print("Data saved successfully as ", filename)
 
 

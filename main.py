@@ -13,7 +13,7 @@ def main():
     production_rate = 5
     degradation_rate = 0.01
     number_particles_per_cell = 5
-    repeats = 1
+    repeats = 10
     diffusion_rate = 1e-2
 
     # Derived parameters
@@ -65,8 +65,8 @@ def main():
 
     # Run the simulations
     SSA_average, PDE_average, combined_grid = hybrid_model.run_simulation(repeats)
-    breakpoint()
-    SSA_average_naive, PDE_average_naive, combined_grid_naive = Naive_hybrid_model.run_simulation(repeats)
+   
+    # SSA_average_naive, PDE_average_naive, combined_grid_naive = Naive_hybrid_model.run_simulation(repeats)
     pure_SSA_average = SSA_model.run_simulation(repeats)
     PDE_results = PDE_model.run_simulation()
 
@@ -75,23 +75,26 @@ def main():
         SSA_grid=SSA_average,
         PDE_grid=PDE_average,
         combined_grid=combined_grid,
+        filename = "Hybrid_data.npz",
         datadirectory='simulation_data'
     )
 
-    Naive_hybrid_model.save_simulation_data(
-        SSA_grid=SSA_average_naive,
-        PDE_grid=PDE_average_naive,
-        combined_grid=combined_grid_naive,
-        datadirectory='simulation_data'
-    )
+    # Naive_hybrid_model.save_simulation_data(
+    #     SSA_grid=SSA_average_naive,
+    #     PDE_grid=PDE_average_naive,
+    #     combined_grid=combined_grid_naive,
+    #     datadirectory='simulation_data'
+    # )
 
     SSA_model.save_simulation_data(
         filled_SSA_grid=pure_SSA_average,
+        filename = "Pure_SSA_data.npz",
         datadirectory='simulation_data',
     )
 
     PDE_model.save_simulation_data(
         PDE_grid=PDE_results,
+        filename = "PDE_data.npz",
         datadirectory='simulation_data',
     )
 

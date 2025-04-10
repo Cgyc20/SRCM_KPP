@@ -218,7 +218,7 @@ class Hybrid:
         return SSA_average, PDE_average, combined_grid
 
      
-    def save_simulation_data(self, SSA_grid: np.ndarray, PDE_grid: np.ndarray, combined_grid: np.ndarray, datadirectory='data'):
+    def save_simulation_data(self, SSA_grid: np.ndarray, PDE_grid: np.ndarray, combined_grid: np.ndarray, filename = 'Hybrid_data.npz', datadirectory='data'):
         if not os.path.exists(datadirectory):
             os.makedirs(datadirectory)
         params = {
@@ -237,7 +237,7 @@ class Hybrid:
             'initial_SSA': self.SSA_initial.tolist(),
             'h': self.h,
         }
-        np.savez(os.path.join(datadirectory, 'Hybrid_data'),
+        np.savez(os.path.join(datadirectory, filename),
                 SSA_grid=SSA_grid,
                 PDE_grid=PDE_grid,
                 combined_grid=combined_grid,
@@ -250,4 +250,4 @@ class Hybrid:
     
         with open(os.path.join(datadirectory, "parameters.json"), 'w') as params_file:
             json.dump(params, params_file, indent=4)
-        print("Data saved successfully")
+        print("Data saved successfully as ", filename)
