@@ -9,7 +9,7 @@ def main():
     total_time = 10
     timestep = 0.008
     particles_per_compartment_thresh = 50
-    gamma = 5
+    gamma = 1
     production_rate = 10
     degradation_rate = 0.01
     number_particles_per_cell = 1
