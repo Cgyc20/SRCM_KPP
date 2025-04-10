@@ -7,7 +7,7 @@ import ctypes
 from .c_class import CFunctionWrapper, Numerical_wrapper
 
 
-class Hybrid:
+class Naive_Hybrid:
 
     def __init__(self, input):
         # Initialize parameters from input dictionary
@@ -162,7 +162,7 @@ class Hybrid:
                 old_time = t
 
             else:
-                PDE_list = self.NumericalClass.RK4_steps(PDE_list)
+                PDE_list = self.NumericalClass.RK4_steps_naive(PDE_list)
 
                 t = copy(td)
                 td += self.timestep
@@ -192,6 +192,7 @@ class Hybrid:
         all_PDE_update_times = []
 
         for _ in tqdm(range(number_of_repeats), desc="Running the Hybrid simulations"):
+            breakpoint()
             SSA_current, PDE_current, approx_mass_current= self.hybrid_simulation(
                 deepcopy(SSA_initial), deepcopy(PDE_initial), deepcopy(approx_mass_initial))
             SSA_sum += SSA_current
@@ -236,17 +237,14 @@ class Hybrid:
             'initial_SSA': self.SSA_initial.tolist(),
             'h': self.h,
         }
-        np.savez(os.path.join(datadirectory, 'Hybrid_data'),
-                SSA_grid=SSA_grid,
-                PDE_grid=PDE_grid,
-                combined_grid=combined_grid,
-                time_vector=self.time_vector,
-                SSA_X=self.SSA_X,
-                PDE_X=self.PDE_X)
-        
-        # Save the lists of SSA events and PDE update times separately
+        np.savez(os.path.join(datadirectory, 'Naive_Hybrid_data'),
+                    SSA_grid=SSA_grid,
+                    PDE_grid=PDE_grid,
+                    combined_grid=combined_grid,
+                    time_vector=self.time_vector,
+                    SSA_X=self.SSA_X,
+                    PDE_X=self.PDE_X)
 
-    
-        with open(os.path.join(datadirectory, "parameters.json"), 'w') as params_file:
+        with open(os.path.join(datadirectory, "naive_hybrid_parameters.json"), 'w') as params_file:
             json.dump(params, params_file, indent=4)
-        print("Data saved successfully")
+        print("Naive Hybrid data saved successfully")

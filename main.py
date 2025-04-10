@@ -1,8 +1,5 @@
 import numpy as np
-from src import Hybrid
-from src import SSA
-from src import PDE  # Import the PDE class
-
+from src import Naive_Hybrid, PDE, SSA, Hybrid
 
 def main():
     # Define the input parameters for the Hybrid model
@@ -16,7 +13,7 @@ def main():
     production_rate = 5
     degradation_rate = 0.01
     number_particles_per_cell = 5
-    repeats = 100
+    repeats = 1
     diffusion_rate = 1e-2
 
     # Derived parameters
@@ -64,8 +61,12 @@ def main():
     # Create an instance of the PDE class
     PDE_model = PDE(input_params)
 
+    Naive_hybrid_model = Naive_Hybrid(input_params)
+
     # Run the simulations
     SSA_average, PDE_average, combined_grid = hybrid_model.run_simulation(repeats)
+    breakpoint()
+    SSA_average_naive, PDE_average_naive, combined_grid_naive = Naive_hybrid_model.run_simulation(repeats)
     pure_SSA_average = SSA_model.run_simulation(repeats)
     PDE_results = PDE_model.run_simulation()
 
@@ -74,6 +75,13 @@ def main():
         SSA_grid=SSA_average,
         PDE_grid=PDE_average,
         combined_grid=combined_grid,
+        datadirectory='simulation_data'
+    )
+
+    Naive_hybrid_model.save_simulation_data(
+        SSA_grid=SSA_average_naive,
+        PDE_grid=PDE_average_naive,
+        combined_grid=combined_grid_naive,
         datadirectory='simulation_data'
     )
 

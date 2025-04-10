@@ -497,11 +497,8 @@ class Numerical_wrapper:
         """
         dudt = np.zeros_like(old_vector)
         nabla = self.DNabla
-        dudt = (
-            self.diffusion_rate * (1 / self.deltax) ** 2 * nabla @ old_vector
-            + self.production_rate * old_vector
-            - self.degradation_rate * old_vector ** 2
-        )
+        dudt = self.diffusion_rate * (1 / self.deltax) ** 2 * nabla @ old_vector+ self.production_rate * old_vector- self.degradation_rate * old_vector ** 2
+        
         return dudt
     
 
