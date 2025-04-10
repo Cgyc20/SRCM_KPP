@@ -166,6 +166,87 @@ void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *prope
 }
 
 
+//This is just naive so doesn't implement the SSA in the appropriate compartments, does it as a blanket.
+void CalculatePropensityNaive(int SSA_M, float *PDE_list, int *SSA_list, float *propensity_list,float *combined_mass_list, float *Approximate_PDE_Mass, int *boolean_mass_list, float degradation_rate_h, float threshold, float production_rate, float gamma, float jump_rate){
+        
+            
+            int two_SSA_M = 2 * SSA_M;
+            int three_SSA_M = 3 * SSA_M;
+            int four_SSA_M = 4 * SSA_M;
+            int five_SSA_M = 5 * SSA_M;
+            int six_SSA_M = 6 * SSA_M;
+        
+            //printf("SSA_M: %d\n", SSA_M);
+            //printf("Expected combined_mass_list size: %d\n", SSA_M);
+            //printf("Expected propensity_list size: %d\n", 6 * SSA_M);   
+        
+            for (int i = 0; i < six_SSA_M; i++) {
+                propensity_list[i] = 0.0f;  // Clear all propensity values before computing
+            }
+        
+            // 1. Diffusion (D → D shift)
+            propensity_list[0] = jump_rate * SSA_list[0];  // Left boundary
+            for (int i = 1; i < SSA_M - 1; i++) {
+                propensity_list[i] = 2.0f * jump_rate * SSA_list[i];  // Middle compartments
+            }
+            propensity_list[SSA_M - 1] = jump_rate * SSA_list[SSA_M - 1];  // Right boundary
+        
+            // 2. Production (D → 2D)
+            for (int i = SSA_M; i < two_SSA_M; i++) {
+                int index = i - SSA_M;
+                if (index < 0 || index >= SSA_M) {
+                    fprintf(stderr, "Error: index out of bounds. index=%d, SSA_M=%d\n", index, SSA_M);
+                    return;
+                }
+                //printf("index: %d\n",index);
+                //printf("combined_mass_list: %f\n",combined_mass_list[index]);
+                //printf("boolean_SSA_list: %d\n",boolean_SSA_list[index]);
+        
+                propensity_list[i] = production_rate * SSA_list[index];  // If SSA is “active”
+                //printf("propensity list: %f\n",propensity_list[i]);
+            }
+        
+            // 3. Degradation: D + D → D (self-degradation)
+            for (int i = two_SSA_M; i < three_SSA_M; i++) {
+                int index = i - two_SSA_M;
+                propensity_list[i] = degradation_rate_h * SSA_list[index] * (SSA_list[index] - 1);  // Quadratic in particle count
+            }
+        
+            // 4. Degradation: D + C → C (heterogeneous)
+            for (int i = three_SSA_M; i < four_SSA_M; i++) {
+                int index = i - three_SSA_M;
+                propensity_list[i] = 2.0f * degradation_rate_h * SSA_list[index] * Approximate_PDE_Mass[index];  // Interaction with PDE domain
+            }
+        
+            // 5. Conversion C → D (only when below threshold)
+            for (int i = four_SSA_M; i < five_SSA_M; i++) {
+                int index = i - four_SSA_M;
+                float combined_mass = combined_mass_list[index];
+                float approx_mass = Approximate_PDE_Mass[index];
+                int boolean_mass = boolean_mass_list[index];
+        
+                propensity_list[i] = (combined_mass < threshold) 
+                                      ? gamma * approx_mass * boolean_mass     // Conversion only allowed below threshold
+                                      : 0.0f;
+            }
+        
+            // 6. Conversion D → C (only when above threshold)
+            for (int i = five_SSA_M; i < six_SSA_M; i++) {
+                int index = i - five_SSA_M;
+                //printf("index: %d\n",index);
+                //printf("i in propensity: %d\n",i);
+                float combined_mass = combined_mass_list[index];
+                int SSA_mass = SSA_list[index];
+        
+                propensity_list[i] = (combined_mass >= threshold) 
+                                      ? gamma * SSA_mass                       // Conversion only allowed above threshold
+                                      : 0.0f;
+            }
+        
+    }
+
+
+
 void CalculatePropensitySSA(int SSA_M, int *SSA_list, float *propensity_list, float degradation_rate_h, float production_rate, float jump_rate){
 
     int two_SSA_M = 2*SSA_M;
