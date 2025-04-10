@@ -10,12 +10,12 @@ def main():
     PDE_multiple = 8
     total_time = 10
     timestep = 0.008
-    particles_per_compartment_thresh = 50
-    gamma = 1
-    production_rate = 10
+    particles_per_compartment_thresh = 25
+    gamma = 50
+    production_rate = 5
     degradation_rate = 0.01
-    number_particles_per_cell = 1
-    repeats = 5
+    number_particles_per_cell = 5
+    repeats = 50
     diffusion_rate = 1e-2
 
     # Derived parameters
@@ -27,7 +27,7 @@ def main():
     # Initial SSA values
     # Initialize all mass in the leftmost compartment
     SSA_initial = np.zeros(compartment_number, dtype=int)
-    SSA_initial[0] = compartment_number * number_particles_per_cell  # All particles in the first compartment
+    SSA_initial[0] = number_particles_per_cell  # All particles in the first compartment
 
     # Input dictionary
 
@@ -58,7 +58,7 @@ def main():
     SSA_average, PDE_average, combined_grid= hybrid_model.run_simulation(repeats)
 
 
-    pure_SSA_average = SSA_model.run_simulation(repeats)
+    #pure_SSA_average = SSA_model.run_simulation(repeats)
     # Save the simulation data
     hybrid_model.save_simulation_data(
         SSA_grid=SSA_average,
@@ -67,10 +67,10 @@ def main():
         datadirectory='simulation_data'
     )
 
-    SSA_model.save_simulation_data(
-        filled_SSA_grid= pure_SSA_average,
-        datadirectory='simulation_data',
-    )
+    # SSA_model.save_simulation_data(
+    #     filled_SSA_grid= pure_SSA_average,
+    #     datadirectory='simulation_data',
+    # )
 
 if __name__ == "__main__":
     main()
