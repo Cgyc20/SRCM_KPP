@@ -1,6 +1,7 @@
 import numpy as np
 from src import Hybrid
 from src import SSA
+from src import PDE  # Import the PDE class
 
 
 def main():
@@ -29,7 +30,9 @@ def main():
     SSA_initial = np.zeros(compartment_number, dtype=int)
     SSA_initial[0] = number_particles_per_cell  # All particles in the first compartment
 
-    # Input dictionary
+    # Initial PDE values
+    PDE_points = compartment_number * PDE_multiple
+    PDE_initial = np.zeros(PDE_points)  # Initialize PDE grid with zeros
 
     # Input dictionary
     input_params = {
@@ -46,19 +49,25 @@ def main():
         'deltax': deltax,
         'production_rate': production_rate,
         'threshold_conc': threshold_conc,
-        'SSA_initial': SSA_initial
+        'SSA_initial': SSA_initial,
+        'PDE_points': PDE_points,
+        'PDE_initial': PDE_initial
     }
-
 
     # Create an instance of the Hybrid class
     hybrid_model = Hybrid(input_params)
 
+    # Create an instance of the SSA class
     SSA_model = SSA(input_params)
-    # Run the simulation
-    SSA_average, PDE_average, combined_grid= hybrid_model.run_simulation(repeats)
 
+    # Create an instance of the PDE class
+    PDE_model = PDE(input_params)
 
+    # Run the simulations
+    SSA_average, PDE_average, combined_grid = hybrid_model.run_simulation(repeats)
     pure_SSA_average = SSA_model.run_simulation(repeats)
+    PDE_results = PDE_model.run_simulation()
+
     # Save the simulation data
     hybrid_model.save_simulation_data(
         SSA_grid=SSA_average,
@@ -68,9 +77,15 @@ def main():
     )
 
     SSA_model.save_simulation_data(
-        filled_SSA_grid= pure_SSA_average,
+        filled_SSA_grid=pure_SSA_average,
         datadirectory='simulation_data',
     )
+
+    PDE_model.save_simulation_data(
+        PDE_grid=PDE_results,
+        datadirectory='simulation_data',
+    )
+
 
 if __name__ == "__main__":
     main()
