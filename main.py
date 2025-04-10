@@ -1,5 +1,7 @@
 import numpy as np
 from src import Hybrid
+from src import SSA
+
 
 def main():
     # Define the input parameters for the Hybrid model
@@ -13,7 +15,7 @@ def main():
     production_rate = 10
     degradation_rate = 0.01
     number_particles_per_cell = 1
-    repeats = 50
+    repeats = 5
     diffusion_rate = 1e-2
 
     # Derived parameters
@@ -47,18 +49,27 @@ def main():
         'SSA_initial': SSA_initial
     }
 
+
     # Create an instance of the Hybrid class
     hybrid_model = Hybrid(input_params)
 
+    SSA_model = SSA(input_params)
     # Run the simulation
     SSA_average, PDE_average, combined_grid= hybrid_model.run_simulation(repeats)
 
+
+    pure_SSA_average = SSA_model.run_simulation(repeats)
     # Save the simulation data
     hybrid_model.save_simulation_data(
         SSA_grid=SSA_average,
         PDE_grid=PDE_average,
         combined_grid=combined_grid,
         datadirectory='simulation_data'
+    )
+
+    SSA_model.save_simulation_data(
+        filled_SSA_grid= pure_SSA_average,
+        datadirectory='simulation_data',
     )
 
 if __name__ == "__main__":
