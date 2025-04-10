@@ -7,18 +7,29 @@ import seaborn as sns
 
 def load_data(filename):
     Hybrid_data = np.load(filename + "Hybrid_data.npz")
+    SSA_data = np.load(filename+"Pure_SSA_data.npz")
+
     parameters = json.load(open(filename + "parameters.json"))
-    return Hybrid_data, parameters
+    pure_SSA_parameters = json.load(open(filename + "parameters_pure_SSA.json"))
+
+    return Hybrid_data, parameters, SSA_data, pure_SSA_parameters
 
 def calculate_mass_continuous(data_grid, deltax):
     return np.sum(data_grid, axis=0) * deltax
 
-def plot_animation(Hybrid_data, parameters):
+def plot_animation(Hybrid_data, SSA_data, parameters):
     C_grid = Hybrid_data["PDE_grid"]
+    D_grid = Hybrid_data["SSA_grid"]
     combined_grid = Hybrid_data["combined_grid"]
+    SSA_X = Hybrid_data["SSA_X"]
     PDE_X = Hybrid_data["PDE_X"]
     time_vector = Hybrid_data["time_vector"]
+    for key in SSA_data:
+        print(key,"helloe")
+    SSA_grid = SSA_data["SSA_grid"]
 
+    for key in SSA_data:
+        print(key, SSA_data[key].shape)
     h = parameters["h"]
     deltax = parameters["deltax"]
     production_rate = parameters["production_rate"]
@@ -28,23 +39,22 @@ def plot_animation(Hybrid_data, parameters):
 
     fig, ax = plt.subplots(figsize=(12, 8)) 
 
+    # Bar plots for SSA
+    bar_SSA = ax.bar(
+        SSA_X, D_grid[:, 0] / h, width=h, color='blue', align='edge', label='Hybrid SSA (Bar Chart)', alpha=0.7
+    )
+
+    bar_pure_SSA = ax.bar(
+        SSA_X, SSA_grid[:, 0] / h, width=h, color='cyan', align='edge', label='Pure SSA (Bar Chart)', alpha=0.5
+    )
+
+    # Line plots for PDE and combined
     line_PDE, = ax.plot(PDE_X, C_grid[:, 0], 'g--', label='Hybrid PDE', linewidth=2)
     line_combined, = ax.plot(PDE_X, combined_grid[:, 0], 'k--', label='Combined', linewidth=2)
+
+    # Reference lines
     threshold_line = ax.axhline(y=concentration_threshold, color='purple', linestyle='--', label='Threshold', linewidth=1.5)
-
-    ax.set_xlabel('Spatial Domain', fontsize=12)
-    ax.set_ylabel('Species Concentration', fontsize=12)
-    ax.set_title('Hybrid Simulation', fontsize=14)
-    ax.set_xlim(0, domain_length)
-    ax.set_ylim(0, max(np.max(combined_grid) * 1.1, concentration_threshold * 1.1))
-    ax.grid(False)  # Disable grid
-
-    time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, verticalalignment='top')
-
     steady_state_concentration = production_rate / degradation_rate
-    y_max = max(np.max(combined_grid) * 1.1, steady_state_concentration * 1.1, concentration_threshold * 1.1)
-    ax.set_ylim(-20, y_max)
-
     steady_state_line = ax.axhline(
         y=steady_state_concentration,
         color='gray',
@@ -53,19 +63,37 @@ def plot_animation(Hybrid_data, parameters):
         linewidth=1.5,
     )
 
+    # Axes and labels
+    ax.set_xlabel('Spatial Domain', fontsize=12)
+    ax.set_ylabel('Species Concentration', fontsize=12)
+    ax.set_title('Hybrid Simulation', fontsize=14)
+    ax.set_xlim(0, domain_length)
+    y_max = max(np.max(combined_grid) * 1.1, steady_state_concentration * 1.1, concentration_threshold * 1.1)
+    ax.set_ylim(-20, y_max)
+    ax.grid(False)
+
+    time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, verticalalignment='top')
+
     def update(frame):
-        line_PDE.set_ydata(C_grid[:, frame])  # Hybrid PDE
-        line_combined.set_ydata(combined_grid[:, frame])  # Hybrid SSA + PDE
+        for bar, height in zip(bar_SSA, D_grid[:, frame] / h):
+            bar.set_height(height)
+        for bar, height in zip(bar_pure_SSA, SSA_grid[:, frame] / h):
+            bar.set_height(height)
+
+        line_PDE.set_ydata(C_grid[:, frame])
+        line_combined.set_ydata(combined_grid[:, frame])
         time_text.set_text(f'Time: {time_vector[frame]:.2f}')
-        return line_combined, line_PDE, time_text, threshold_line, steady_state_line
 
-    ani = FuncAnimation(fig, update, frames=range(0, len(time_vector), 1), interval=40)
+        return (*bar_SSA, *bar_pure_SSA, line_combined, line_PDE, time_text, threshold_line, steady_state_line)
 
+    ani = FuncAnimation(fig, update, frames=range(0, len(time_vector)), interval=40)
+
+    # Legend and layout
     fig.subplots_adjust(right=0.8)
     ax.legend([
-        line_PDE, line_combined
+        bar_SSA[0], bar_pure_SSA[0], line_PDE, line_combined
     ], [
-        "Hybrid PDE", "Hybrid SSA + PDE"
+        "Hybrid SSA", "Pure SSA", "Hybrid PDE", "Hybrid SSA + PDE"
     ], loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=10)
 
     plt.show()
@@ -87,7 +115,7 @@ def plot_total_mass(time_vector, combined_total_mass, domain_length, production_
 def main(filename):
     sns.set_theme(style="whitegrid")
 
-    Hybrid_data, parameters = load_data(filename)
+    Hybrid_data, parameters,  SSA_data, pure_SSA_parameters = load_data(filename)
 
     C_grid = Hybrid_data["PDE_grid"]
     combined_grid = Hybrid_data["combined_grid"]
@@ -103,7 +131,7 @@ def main(filename):
 
     combined_total_mass = calculate_mass_continuous(combined_grid, deltax)
 
-    plot_animation(Hybrid_data, parameters)
+    plot_animation(Hybrid_data, SSA_data, parameters)
     plot_total_mass(time_vector, combined_total_mass, domain_length, production_rate, degradation_rate, concentration_threshold)
 
 if __name__ == '__main__':
