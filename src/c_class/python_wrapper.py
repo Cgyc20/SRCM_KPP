@@ -57,6 +57,8 @@ class CFunctionWrapper:
             ctypes.c_float, ctypes.c_float, ctypes.c_float
         ]
 
+        
+
         print(f"Loaded C library from {library_path}")
 
     def __str__(self):
@@ -252,6 +254,86 @@ class CFunctionWrapper:
             "approx_PDE_mass": approx_PDE_mass,
         }
     
+class SSA_C_Wrapper:
+    def __init__(self, params, library_path="C_functions.so"):
+        """
+        Initialize the HybridSimulation with the given parameters.
+
+        Parameters:
+            params  (dict): Dictionary containing the following keys:
+                - domain_length (float): Length of the spatial domain.
+                - compartment_number (int): Number of SSA compartments.
+                - total_time (float): Total simulation time.
+                - timestep (float): Time step size for numerical integration.
+                - degradation_rate (float): Degradation rate for the system.
+                - production_rate (float): Production rate for the system.
+                - diffusion_rate (float): Diffusion rate for the system.
+                - h (float): Grid size or compartment length.
+        """
+        self.lib = ctypes.CDLL(library_path)
+
+
+        self.L = params[ 'domain_length']
+        self.SSA_M = params[ 'compartment_number']
+        self.total_time = params[ 'total_time']
+        self.timestep = params[ 'timestep']
+        self.degradation_rate = params[ 'degradation_rate']
+        self.production_rate = params[ 'production_rate']
+        self.diffusion_rate = params[ 'diffusion_rate']
+        self.h = params[ 'h']
+
+        self.degradation_rate_h = params[ 'degradation_rate'] / params[ 'h']  # Degradation rate 
+        self.jump_rate = self.diffusion_rate / (self.h**2)  # Diffusion coefficient scaled by grid size
+        self.lib.CalculatePropensitySSA.argtypes = [
+            ctypes.c_int,  # SSA_M
+            ctypes.POINTER(ctypes.c_int),  # SSA_list
+            ctypes.POINTER(ctypes.c_float),  # propensity_list
+            ctypes.c_float,  # degradation_rate_h
+            ctypes.c_float,  # production_rate
+            ctypes.c_float   # jump_rate
+        ]
+
+
+
+    def __str__(self):
+        return (f"HybridSimulation(domain_length={self.L}, compartments={self.SSA_M}, "
+                f"total_time={self.total_time}, timestep={self.timestep}, "
+                f"degradation_rate={self.degradation_rate}, production_rate={self.production_rate}, "
+                f"diffusion_rate={self.diffusion_rate}, h={self.h}, d={self.d})")
+    
+
+    def calculate_propensity(self,SSA_list):
+        """
+        Calculate the propensity of reactions based on the current SSA state.
+
+        Parameters:
+            SSA_list (np.ndarray): Current state of the SSA compartments.
+
+        Returns:
+            np.ndarray: Propensity values for each compartment.
+        """
+        # Placeholder for actual implementation
+        # This should call the C function to compute propensities
+        # based on the SSA_list and other parameters
+        #(int SSA_M, int *SSA_list, float *propensity_list, float degradation_rate_h, float production_rate, float jump_rate)
+
+        propensity = np.zeros(3*self.SSA_M, dtype=np.float32)
+        SSA_list = np.array(SSA_list, dtype=np.int32)
+
+        self.lib.CalculatePropensitySSA(
+            ctypes.c_int(self.SSA_M),
+            SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            propensity.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            ctypes.c_float(self.degradation_rate_h),
+            ctypes.c_float(self.production_rate),
+            ctypes.c_float(self.jump_rate)
+        )
+
+        return {
+            "propensity":propensity
+        }
+
+
 
 class Numerical_wrapper:
     def __init__(self, params, library_path="C_Numerical_functions.so"):
