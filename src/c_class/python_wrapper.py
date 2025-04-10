@@ -254,6 +254,60 @@ class CFunctionWrapper:
             "approx_PDE_mass": approx_PDE_mass,
         }
     
+
+    def calculate_naive_propensity(self, PDE_list, SSA_list):
+        """
+        Computes the reaction propensities in each SSA compartment.
+
+        Parameters:
+            PDE_list (array-like): PDE values.
+            SSA_list (array-like): SSA values.
+
+        Returns:
+            dict: Contains:
+                - 'propensity' (np.ndarray): Propensity values.
+                - 'min_mass_SSA' (np.ndarray): Active SSA compartments based on minimum mass.
+                - 'min_mass_PDE' (np.ndarray): Active PDE compartments based on minimum mass.
+                - 'combined_mass' (np.ndarray): Combined mass at each compartment.
+                - 'approx_PDE_mass' (np.ndarray): PDE contribution.
+        """
+        PDE_list = np.array(PDE_list, dtype=np.float32)
+        SSA_list = np.array(SSA_list, dtype=np.int32)
+        propensity = np.zeros(6 * self.SSA_M, dtype=np.float32)
+
+        # Compute boolean masks based on minimum mass
+        min_mass_PDE, min_mass_SSA = self.boolean_low_limit(PDE_list)
+
+        # Compute combined mass and approximate PDE mass
+        combined_mass, approx_PDE_mass = self.calculate_total_mass(PDE_list, SSA_list)
+
+        # Compute boolean masks based on threshold
+        
+        # Call the C function to calculate propensities
+        self.lib.CalculatePropensityNaive(
+            ctypes.c_int(self.SSA_M),
+            PDE_list.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            SSA_list.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            propensity.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            combined_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            approx_PDE_mass.ctypes.data_as(ctypes.POINTER(ctypes.c_float)),
+            min_mass_SSA.ctypes.data_as(ctypes.POINTER(ctypes.c_int)),
+            ctypes.c_float(self.degradation_rate_h),
+            ctypes.c_float(self.threshold),
+            ctypes.c_float(self.production_rate),
+            ctypes.c_float(self.gamma),
+            ctypes.c_float(self.jump_rate)
+        )
+
+        return {
+            "propensity": propensity,
+            "min_mass_SSA": min_mass_SSA,
+            "min_mass_PDE": min_mass_PDE,
+            "combined_mass": combined_mass,
+            "approx_PDE_mass": approx_PDE_mass,
+        }
+
+        
 class SSA_C_Wrapper:
     def __init__(self, params, library_path="C_functions.so"):
         """
@@ -333,7 +387,7 @@ class SSA_C_Wrapper:
             "propensity":propensity
         }
 
-
+    
 
 class Numerical_wrapper:
     def __init__(self, params, library_path="C_Numerical_functions.so"):
@@ -406,6 +460,8 @@ class Numerical_wrapper:
         # Combine all terms to compute the RHS
         dudt = diffusion_term - degradation_term + production_term
         return dudt
+    
+    
 
     def RK4_steps(self, old_vector, boolean_threshold, SSA_fine_mass):
         """
@@ -426,4 +482,43 @@ class Numerical_wrapper:
         k4 = self._RHS_derivative(old_vector + self.timestep * k3, boolean_threshold, SSA_fine_mass)
 
         # Combine the coefficients to compute the next state
+        return old_vector + self.timestep * (k1 + 2 * k2 + 2 * k3 + k4) / 6
+    
+
+    def _RHS_derivative_naive(self,old_vector):
+        """
+        Calculate the right-hand side (RHS) of the PDE system using a naive approach.
+
+        Parameters:
+            old_vector (np.ndarray): Current state of the PDE grid.
+
+        Returns:
+            np.ndarray: The RHS of the PDE system.
+        """
+        dudt = np.zeros_like(old_vector)
+        nabla = self.DNabla
+        dudt = (
+            self.diffusion_rate * (1 / self.deltax) ** 2 * nabla @ old_vector
+            + self.production_rate * old_vector
+            - self.degradation_rate * old_vector ** 2
+        )
+        return dudt
+    
+
+    def RK4_steps_naive(self, old_vector):
+        """
+        Perform one step of the Runge-Kutta 4th order (RK4) method for time integration using a naive approach.
+
+        Parameters:
+            old_vector (np.ndarray): Current state of the PDE grid.
+
+        Returns:
+            np.ndarray: the RHS of the PDE systems
+        """
+
+        k1 = self._RHS_derivative_naive(old_vector)
+        k2 = self._RHS_derivative_naive(old_vector + 0.5 * self.timestep * k1)
+        k3 = self._RHS_derivative_naive(old_vector + 0.5 * self.timestep * k2)
+        k4 = self._RHS_derivative_naive(old_vector + self.timestep * k3)
+
         return old_vector + self.timestep * (k1 + 2 * k2 + 2 * k3 + k4) / 6
