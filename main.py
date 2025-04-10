@@ -16,7 +16,7 @@ def main():
     production_rate = 5
     degradation_rate = 0.01
     number_particles_per_cell = 5
-    repeats = 500
+    repeats = 100
     diffusion_rate = 1e-2
 
     # Derived parameters
@@ -33,6 +33,7 @@ def main():
     # Initial PDE values
     PDE_points = compartment_number * PDE_multiple
     PDE_initial = np.zeros(PDE_points)  # Initialize PDE grid with zeros
+    PDE_initial[:PDE_multiple] = number_particles_per_cell/h  # Set the first PDE compartment with the initial number of particles
 
     # Input dictionary
     input_params = {
@@ -68,7 +69,7 @@ def main():
     pure_SSA_average = SSA_model.run_simulation(repeats)
     PDE_results = PDE_model.run_simulation()
 
-    # Save the simulation data
+    #Save the simulation data
     hybrid_model.save_simulation_data(
         SSA_grid=SSA_average,
         PDE_grid=PDE_average,
