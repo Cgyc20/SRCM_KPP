@@ -15,7 +15,7 @@ def main():
     production_rate = 5
     degradation_rate = 0.01
     number_particles_per_cell = 5
-    repeats = 50
+    repeats = 500
     diffusion_rate = 1e-2
 
     # Derived parameters
@@ -58,7 +58,7 @@ def main():
     SSA_average, PDE_average, combined_grid= hybrid_model.run_simulation(repeats)
 
 
-    #pure_SSA_average = SSA_model.run_simulation(repeats)
+    pure_SSA_average = SSA_model.run_simulation(repeats)
     # Save the simulation data
     hybrid_model.save_simulation_data(
         SSA_grid=SSA_average,
@@ -67,10 +67,10 @@ def main():
         datadirectory='simulation_data'
     )
 
-    # SSA_model.save_simulation_data(
-    #     filled_SSA_grid= pure_SSA_average,
-    #     datadirectory='simulation_data',
-    # )
+    SSA_model.save_simulation_data(
+        filled_SSA_grid= pure_SSA_average,
+        datadirectory='simulation_data',
+    )
 
 if __name__ == "__main__":
     main()
