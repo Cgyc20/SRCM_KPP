@@ -1,6 +1,8 @@
 # 🧪 Hybrid SRCM Simulation of FKPP Dynamics
 
-This project simulates the **FKPP (Fisher–Kolmogorov–Petrovsky–Piskunov)** reaction-diffusion equation using a **Hybrid Spatial Regime Conversion Method (SRCM)**. It dynamically switches between a **Stochastic Simulation Algorithm (SSA)** and a **deterministic PDE solver**, depending on local particle concentrations — ensuring efficiency **without sacrificing stochastic fidelity**.
+This project simulates the **FKPP (Fisher–Kolmogorov–Petrovsky–Piskunov)** reaction-diffusion equation using a **Hybrid Spatial Regime Conversion Method (SRCM)** designed and developed by me (Charlie Cameron) for my PhD project, this leans on the work of Kyanston and Yates in the Regime conversion method. This system dynamically switches between a **Stochastic Simulation Algorithm (SSA)** and a **deterministic PDE solver**, depending on local particle concentrations — ensuring efficiency **without sacrificing stochastic accuracy**.
+
+This is designed in such a way that at the front of the wave we aim to apply the SSA while behind the wave we will apply the PDE approximation of the mean-field model.
 
 ---
 
@@ -36,12 +38,13 @@ python main.py
 ```
 
 This runs the hybrid SRCM simulation:
-- FKPP dynamics are modeled using SSA in low-density regions and PDEs elsewhere.
+- FKPP dynamics are modelled using SSA in low-density regions and PDEs elsewhere.
 - You can edit model parameters directly in `main.py` to adjust:
   - Diffusion rate
   - Reaction terms
-  - Conversion thresholds
+  - Conversion thresholds (as a particle number per cell)
   - Simulation time and grid size
+
 
 The simulation saves outputs to the `simulation_data/` directory and plots **total mass over time** to track conservation.
 
@@ -59,6 +62,7 @@ This will:
 - Animate the hybrid and pure SSA solutions
 - Plot SSA bars, PDE lines, and hybrid concentration profiles over time
 - Overlay steady-state reference and threshold levels
+- This uses the SSA as comparison, note the SSA is much slower to run. 
 
 ---
 
@@ -67,6 +71,7 @@ This will:
 - The project uses **C code** for computational bottlenecks:
   - Propensity and stochastic reaction calculations
 - You can compile the C backend using the included `Makefile`:
+- This may be updated in the future to apply even more computationally expensive tasks. 
 
 ```bash
 cd src/c_class
@@ -81,10 +86,10 @@ Make sure the resulting `C_functions.so` is present in the same folder as `pytho
 
 The **Hybrid SRCM** method enables:
 - Efficient simulation of spatial stochastic systems
-- Regime switching based on particle thresholds (e.g., using the **RHS rule**)
+- Regime switching based on particle thresholds. We have a transfer of mass between the continuous and discrete regimes. 
 - Application to complex nonlinear models like **FKPP**, which exhibits traveling wave solutions
 
-This project is suitable for testing hybrid modeling frameworks in theoretical biology, chemical kinetics, and spatial population dynamics.
+This project is suitable for testing hybrid modelling frameworks in theoretical biology, chemical kinetics, and spatial population dynamics. I am yet to develop code for generalised reaction-diffusion systems but this is a working progress.
 
 ---
 
@@ -93,7 +98,6 @@ This project is suitable for testing hybrid modeling frameworks in theoretical b
 - Python 3.7+
 - `numpy`
 - `matplotlib`
-- `scipy`
 - `ctypes` (standard library, used to interface with C)
 
 You can install required packages via:
@@ -106,4 +110,4 @@ pip install numpy matplotlib scipy
 
 ## 📫 Contact
 
-For questions, collaborations, or bug reports — feel free to open an issue or reach out directly.
+For questions, collaborations, or bug reports — feel free to open an issue or reach out directly. 
