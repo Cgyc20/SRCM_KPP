@@ -1,6 +1,6 @@
 # 🧪 Hybrid SRCM Simulation of FKPP Dynamics
 
-This project simulates the **FKPP (Fisher–Kolmogorov–Petrovsky–Piskunov)** reaction-diffusion equation using a **Hybrid Spatial Regime Conversion Method (SRCM)** designed and developed by me (Charlie Cameron) for my PhD project, this leans on the work of Kyanston and Yates in the Regime conversion method. This system dynamically switches between a **Stochastic Simulation Algorithm (SSA)** and a **deterministic PDE solver**, depending on local particle concentrations — ensuring efficiency **without sacrificing stochastic accuracy**.
+This project simulates the **FKPP (Fisher–Kolmogorov–Petrovsky–Piskunov)** reaction-diffusion equation using a **Hybrid Spatial Regime Conversion Method (SRCM)** designed and developed for my PhD project, this leans on the work of Kyanston and Yates in the Regime conversion method. This system dynamically switches between a **Stochastic Simulation Algorithm (SSA)** and a **deterministic PDE solver**, depending on local particle concentrations — ensuring efficiency **without sacrificing stochastic accuracy**.
 
 This is designed in such a way that at the front of the wave we aim to apply the SSA while behind the wave we will apply the PDE approximation of the mean-field model.
 
