@@ -72,7 +72,7 @@ void FineGridSSAMass(int *SSA_mass, int PDE_grid_length, int SSA_m, int PDE_mult
     }
 }
 
-// Compute all reaction/diffusion propensities for SSA compartments
+// Compute all reaction/diffusion propensities for SSA compartments. This is for the Hybrid method! not for the SSA
 void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *propensity_list, 
                          int *boolean_SSA_list, float *combined_mass_list, 
                          float *Approximate_PDE_Mass, int *boolean_mass_list, 
@@ -162,5 +162,35 @@ void CalculatePropensity(int SSA_M, float *PDE_list, int *SSA_list, float *prope
         propensity_list[i] = (combined_mass >= threshold) 
                               ? gamma * SSA_mass                       // Conversion only allowed above threshold
                               : 0.0f;
+    }
+}
+
+
+void CalculatePropensitySSA(int SSA_M, int *SSA_list, float *propensity_list, float degradation_rate_h, float production_rate, float jump_rate){
+
+    int two_SSA_M = 2*SSA_M;
+    int three_SSA_M = 3*SSA_M;
+
+    for (int i=0; i<three_SSA_M;i++){
+        propensity_list[i] = 0.0f; //We want to set all propensity to be zero
+    }
+
+    propensity_list[i] = jump_rate*SSA_list[0];
+    for (int i = 1; i<SSA_M-1;i++){
+        propensity_list[i] = 2.0f*jump_rate*SSA_list[i]; //setting the internal propensity for diffusion
+    }
+    propensity_list[SSA_M-1] = jump_rate*SSA_list[SSA_M-1];
+    
+
+    //next thing we are doing is fill in the production propensity. A->2A
+    for (int i=SSA_M; i<two_SSA_M;i++){
+        int compartment_index = i-SSA_M;
+        propensity_list[i] = production_rate*SSA_list[compartment_index];
+    }
+
+    //now finally we have the degradation propensity
+    for (int i = two_SSA_M; i < three_SSA_M;i++){
+        int compartment_index = i-two_SSA_M;
+        propensity_list[i] = degradation_rate_h*SSA_list[compartment_index]*(SSA_list[compartment_index]-1);
     }
 }
