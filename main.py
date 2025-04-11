@@ -10,7 +10,7 @@ def main():
     timestep = 0.008
     particles_per_compartment_thresh = 25
     gamma = 50
-    production_rate = 5
+    production_rate = 1
     degradation_rate = 0.01
     number_particles_per_cell = 5
     repeats = 10
@@ -55,8 +55,9 @@ def main():
     # Create an instance of the Hybrid class
     hybrid_model = Hybrid(input_params)
 
-    # Create an instance of the SSA class
-    SSA_model = SSA(input_params)
+    # Create two instances of the SSA class
+    SSA_model_1 = SSA(input_params)
+    SSA_model_2 = SSA(input_params)
 
     # Create an instance of the PDE class
     PDE_model = PDE(input_params)
@@ -67,34 +68,37 @@ def main():
     SSA_average, PDE_average, combined_grid = hybrid_model.run_simulation(repeats)
    
     # SSA_average_naive, PDE_average_naive, combined_grid_naive = Naive_hybrid_model.run_simulation(repeats)
-    pure_SSA_average = SSA_model.run_simulation(repeats)
+    pure_SSA_average_1 = SSA_model_1.run_simulation(repeats)
+    pure_SSA_average_2 = SSA_model_2.run_simulation(repeats)
     PDE_results = PDE_model.run_simulation()
 
-    #Save the simulation data
+    # Save the simulation data
     hybrid_model.save_simulation_data(
         SSA_grid=SSA_average,
         PDE_grid=PDE_average,
         combined_grid=combined_grid,
-        filename = "Hybrid_data.npz",
+        filename="Hybrid_data.npz",
         datadirectory='simulation_data'
     )
 
-    # Naive_hybrid_model.save_simulation_data(
-    #     SSA_grid=SSA_average_naive,
-    #     PDE_grid=PDE_average_naive,
-    #     combined_grid=combined_grid_naive,
-    #     datadirectory='simulation_data'
-    # )
-
-    SSA_model.save_simulation_data(
-        filled_SSA_grid=pure_SSA_average,
-        filename = "Pure_SSA_data.npz",
+    # Save the first SSA simulation
+    SSA_model_1.save_simulation_data(
+        filled_SSA_grid=pure_SSA_average_1,
+        filename="Pure_SSA_data_1.npz",
         datadirectory='simulation_data',
     )
 
+    # Save the second SSA simulation
+    SSA_model_2.save_simulation_data(
+        filled_SSA_grid=pure_SSA_average_2,
+        filename="Pure_SSA_data_2.npz",
+        datadirectory='simulation_data',
+    )
+
+    # Save the PDE simulation
     PDE_model.save_simulation_data(
         PDE_grid=PDE_results,
-        filename = "PDE_data.npz",
+        filename="PDE_data.npz",
         datadirectory='simulation_data',
     )
 

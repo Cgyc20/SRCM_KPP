@@ -12,7 +12,7 @@ class HybridSimulationPlotter:
 
     def load_data(self):
         self.hybrid_data = np.load(self.filename + "Hybrid_data.npz")
-        self.ssa_data = np.load(self.filename + "Pure_SSA_data.npz")
+        self.ssa_data = np.load(self.filename + "Pure_SSA_data_1.npz")
         self.pde_data = np.load(self.filename + "PDE_data.npz")  # Load pure PDE data
 
         with open(self.filename + "parameters.json") as f:
