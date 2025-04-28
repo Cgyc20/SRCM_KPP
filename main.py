@@ -9,10 +9,10 @@ def main():
     total_time = 10
     timestep = 0.008
     particles_per_compartment_thresh = 25
-    gamma = 50
-    production_rate = 10
+    gamma = 5
+    production_rate = 1
     degradation_rate = 0.01
-    number_particles_per_cell = 100
+    number_particles_per_cell = 5
     repeats = 10
     diffusion_rate = 1e-2
 
@@ -84,7 +84,7 @@ def main():
     # Save the first SSA simulation
     SSA_model_1.save_simulation_data(
         filled_SSA_grid=pure_SSA_average_1,
-        filename="Pure_SSA_data_1.npz",
+        filename="Pure_SSA_data.npz",
         datadirectory='simulation_data',
     )
 
