@@ -10,9 +10,9 @@ def main():
     timestep = 0.008
     particles_per_compartment_thresh = 25
     gamma = 50
-    production_rate = 1
+    production_rate = 10
     degradation_rate = 0.01
-    number_particles_per_cell = 5
+    number_particles_per_cell = 100
     repeats = 10
     diffusion_rate = 1e-2
 
