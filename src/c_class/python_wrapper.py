@@ -76,7 +76,7 @@ class CFunctionWrapper:
         """
         approximate_PDE_mass = np.zeros(self.SSA_M, dtype=np.float32)
         PDE_list = np.array(PDE_list, dtype=np.float32)
-
+    
         self.lib.ApproximateMassLeftHand(
             ctypes.c_int(self.SSA_M),
             ctypes.c_int(self.PDE_multiple),
