@@ -13,7 +13,7 @@ def main():
     production_rate = 10
     degradation_rate = 0.01
     number_particles_per_cell = 100
-    repeats = 100
+    repeats = 10
     diffusion_rate = 1e-2
 
     # Derived parameters
