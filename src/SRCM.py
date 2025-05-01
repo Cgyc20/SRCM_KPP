@@ -9,8 +9,8 @@ from .c_class import CFunctionWrapper, Numerical_wrapper
 
 class Hybrid:
 
-    def __init__(self, input):
-        # Initialize parameters from input dictionary
+    def __init__(self, input, use_stochastic_init=True):
+        # === Unpack and assign scalar parameters ===
         self.L = input['domain_length']
         self.SSA_M = input['compartment_number']
         self.PDE_multiple = input['PDE_multiple']
@@ -21,57 +21,75 @@ class Hybrid:
         self.degradation_rate = input['degradation_rate']
         self.diffusion_rate = input['diffusion_rate']
         self.h = input['h']
-        self.d = self.diffusion_rate / (self.h**2)
         self.deltax = input['deltax']
         self.production_rate = input['production_rate']
         self.threshold_conc = input['threshold_conc']
-        self.SSA_X = np.linspace(0, self.L - self.h, self.SSA_M)
-        self.PDE_M = self.SSA_M * self.PDE_multiple
-        self.PDE_X = np.linspace(0, self.L, self.PDE_M) 
 
-    
-        # Validate SSA_initial
+        # === Derived parameters ===
+        self.d = self.diffusion_rate / (self.h**2)
+        self.PDE_M = self.SSA_M * self.PDE_multiple
+        self.SSA_X = np.linspace(0, self.L - self.h, self.SSA_M)
+        self.PDE_X = np.linspace(0, self.L, self.PDE_M)
+        self.steady_state = self.production_rate / self.degradation_rate
+        self.time_vector = np.arange(0, self.total_time, self.timestep)
+
+        # === Validate and set SSA initial condition ===
         SSA_initial = input.get('SSA_initial')
         if not isinstance(SSA_initial, np.ndarray):
             raise ValueError("SSA_initial must be a numpy array.")
         if len(SSA_initial) != self.SSA_M:
-            raise ValueError("The length of SSA_initial must match the number of compartments (SSA_M).")
+            raise ValueError("Length of SSA_initial must match SSA_M.")
         if not np.issubdtype(SSA_initial.dtype, np.integer):
             raise ValueError("SSA_initial must contain integer values.")
         self.SSA_initial = SSA_initial.astype(int)
 
-        # Initialize additional attributes
-        self.PDE_initial_conditions = np.zeros_like(self.PDE_X, dtype=np.float64)
-        self.steady_state = self.production_rate / self.degradation_rate
+        # === Validate and set PDE initial condition ===
+        PDE_initial = input.get('PDE_initial')
+        if not isinstance(PDE_initial, np.ndarray):
+            raise ValueError("PDE_initial must be a numpy array.")
+        if len(PDE_initial) != self.PDE_M:
+            raise ValueError("Length of PDE_initial must match PDE_M.")
+        if not np.issubdtype(PDE_initial.dtype, np.floating):
+            raise ValueError("PDE_initial must contain float values.")
+        self.PDE_initial = PDE_initial.astype(float)
 
-        self.time_vector = np.arange(0, self.total_time, self.timestep)
+        # === Select initialization strategy ===
+        if use_stochastic_init:
+            self.PDE_initial_conditions = np.zeros_like(self.PDE_X, dtype=np.float64)
+            # Keep SSA_initial as provided
+        else:
+            self.PDE_initial_conditions = self.PDE_initial.copy()
+            self.SSA_initial = np.zeros(self.SSA_M, dtype=int)
 
-        Cfunctions_params = {'SSA_M': self.SSA_M,
-                            'PDE_multiple': self.PDE_multiple,
-                            'PDE_M': self.PDE_M,
-                            'h': self.h,
-                            'deltax': self.deltax,
-                            'threshold': self.threshold,
-                            'production_rate':self.production_rate,
-                            'degradation_rate_h': self.degradation_rate/self.h,
-                            'jump_rate': self.d,
-                            'gamma': self.gamma,
-                            }
+        # === External function setup ===
+        Cfunctions_params = {
+            'SSA_M': self.SSA_M,
+            'PDE_multiple': self.PDE_multiple,
+            'PDE_M': self.PDE_M,
+            'h': self.h,
+            'deltax': self.deltax,
+            'threshold': self.threshold,
+            'production_rate': self.production_rate,
+            'degradation_rate_h': self.degradation_rate / self.h,
+            'jump_rate': self.d,
+            'gamma': self.gamma,
+        }
 
-        Numerical_params = {'PDE_M': self.PDE_M,
-                            'diffusion_rate': self.diffusion_rate,
-                            'degradation_rate': self.degradation_rate,
-                            'production_rate': self.production_rate,
-                            'deltax': self.deltax,
-                            'timestep': self.timestep,}
-        
-        self.CFunctions = CFunctionWrapper(Cfunctions_params,"src/c_class/C_functions.so")
-    
+        Numerical_params = {
+            'PDE_M': self.PDE_M,
+            'diffusion_rate': self.diffusion_rate,
+            'degradation_rate': self.degradation_rate,
+            'production_rate': self.production_rate,
+            'deltax': self.deltax,
+            'timestep': self.timestep,
+        }
+
+        self.CFunctions = CFunctionWrapper(Cfunctions_params, "src/c_class/C_functions.so")
         self.NumericalClass = Numerical_wrapper(Numerical_params)
-
 
         print("Successfully initialized the hybrid model")
         print(f"The threshold concentration is: {self.threshold_conc}")
+
 
     def create_initial_dataframe(self) -> np.ndarray:
         SSA_grid = np.zeros((self.SSA_M, len(self.time_vector)), dtype=int)
