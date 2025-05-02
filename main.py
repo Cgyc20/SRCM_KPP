@@ -2,18 +2,18 @@ import numpy as np
 from src import Naive_Hybrid, PDE, SSA, Hybrid
 
 def main():
-    # Define the input parameters for the Hybrid model
+    # Setting the parameters
     domain_length = 5
     compartment_length = 0.1
     PDE_multiple = 8
     total_time = 10
     timestep = 0.008
     particles_per_compartment_thresh = 25
-    gamma = 5
-    production_rate = 1
+    gamma = 1
+    production_rate = 5
     degradation_rate = 0.01
-    number_particles_per_cell = 5
-    repeats = 10
+    number_particles_per_cell = 30
+    repeats = 500
     diffusion_rate = 1e-2
 
     # Derived parameters
@@ -53,7 +53,7 @@ def main():
     }
 
     # Create an instance of the Hybrid class
-    hybrid_model = Hybrid(input_params)
+    hybrid_model = Hybrid(input_params, use_stochastic_init=False)
 
     # Create two instances of the SSA class
     SSA_model_1 = SSA(input_params)
