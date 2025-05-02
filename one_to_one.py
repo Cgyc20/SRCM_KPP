@@ -6,14 +6,14 @@ def main():
     domain_length = 5
     compartment_length = 0.1
     PDE_multiple = 8
-    total_time = 10
+    total_time = 8
     timestep = 0.008
-    particles_per_compartment_thresh = 25
-    gamma = 5
+    particles_per_compartment_thresh = 50
+    gamma = 1
     production_rate = 10
     degradation_rate = 0.01
     number_particles_per_cell = 100
-    repeats = 10
+    repeats = 100
     diffusion_rate = 1e-2
 
     # Derived parameters
@@ -53,7 +53,7 @@ def main():
     }
 
     # Create an instance of the Hybrid class
-    hybrid_model = Hybrid(input_params)
+    hybrid_model = Hybrid(input_params,use_stochastic_init=False)
 
     # Create two instances of the SSA class
     SSA_model = SSA(input_params)
