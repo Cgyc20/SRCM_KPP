@@ -88,7 +88,7 @@ class HybridSimulationPlotter:
             time_text.set_text(f'Time: {self.time_vector[frame]:.2f}')
             return (*bar_hybrid_ssa, *bar_pure_ssa, line_combined, line_pde, line_pure_pde, time_text)
 
-        ani = FuncAnimation(fig, update, frames=len(self.time_vector), interval=40)
+        ani = FuncAnimation(fig, update, frames=len(self.time_vector), interval=1)
 
         # Legend
         ax.legend(loc='center left', bbox_to_anchor=(1.05, 0.5), fontsize=10)
