@@ -7,13 +7,13 @@ def main():
     compartment_length = 0.1
     PDE_multiple = 8
     total_time = 8
-    timestep = 0.008
+    timestep = 0.005
     particles_per_compartment_thresh = 50
-    gamma = 1
+    gamma = 10
     production_rate = 10
     degradation_rate = 0.01
     number_particles_per_cell = 100
-    repeats = 100
+    repeats = 500
     diffusion_rate = 1e-2
 
     # Derived parameters
@@ -68,7 +68,7 @@ def main():
     SSA_average, PDE_average, combined_grid = hybrid_model.run_simulation(repeats)
    
     # SSA_average_naive, PDE_average_naive, combined_grid_naive = Naive_hybrid_model.run_simulation(repeats)
-    pure_SSA_average = SSA_model.run_simulation(repeats)
+    # pure_SSA_average = SSA_model.run_simulation(repeats)
 
     PDE_results = PDE_model.run_simulation()
 
@@ -81,12 +81,12 @@ def main():
         datadirectory='simulation_data'
     )
 
-    # Save the first SSA simulation
-    SSA_model.save_simulation_data(
-        filled_SSA_grid=pure_SSA_average,
-        filename="Pure_SSA_data.npz",
-        datadirectory='simulation_data',
-    )
+    # # Save the first SSA simulation
+    # SSA_model.save_simulation_data(
+    #     filled_SSA_grid=pure_SSA_average,
+    #     filename="Pure_SSA_data.npz",
+    #     datadirectory='simulation_data',
+    # )
 
 
     # Save the PDE simulation
