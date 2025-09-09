@@ -42,13 +42,14 @@ def plot_results(max_concentrations, hybrid_times_per_iter, ssa_times_per_iter, 
     # Labeling the axes
     plt.xlabel('Max Concentration', fontsize=14)  # Increase font size of labels
     plt.ylabel('Time per repeat (seconds)', fontsize=14)  # Increase font size of labels
-   
 
+    plt.ylim(0,np.max(ssa_times_per_iter)+0.1)
+    plt.xlim(0,1010)
     # Add a legend with a larger font size
     plt.legend(fontsize=12)  # Increase font size of legend
 
     # Display the plot
-    plt.grid(True)
+    plt.grid(False)
     plt.show()
 
 def main():
@@ -62,7 +63,7 @@ def main():
     gamma = 50
     degradation_rate = 0.01
     number_particles_per_cell = 5
-    repeats = 5
+    repeats = 4
     diffusion_rate = 1e-2
 
     # Derived parameters
@@ -109,7 +110,7 @@ def main():
     result_folder = 'timing_results'
 
     # Loop through production rates from 1 to 7
-    for production_rate in np.arange(1, 10,0.5):
+    for production_rate in np.arange(0.5, 10.5,0.5):
         # Update the production rate in the input parameters
         input_params['production_rate'] = production_rate
 
