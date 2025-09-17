@@ -209,17 +209,27 @@ class Hybrid:
         # Arrays to track all SSA events and PDE update times across repeats
         all_SSA_events_logs = []
         all_PDE_update_times = []
-
+        skipped_repeat = 0
         for _ in tqdm(range(number_of_repeats), desc="Running the Hybrid simulations"):
-            SSA_current, PDE_current, approx_mass_current= self.hybrid_simulation(
-                deepcopy(SSA_initial), deepcopy(PDE_initial), deepcopy(approx_mass_initial))
-            SSA_sum += SSA_current
-            PDE_sum += PDE_current
-            approx_mass_sum += approx_mass_current
+            try:
+                SSA_current, PDE_current, approx_mass_current= self.hybrid_simulation(
+                    deepcopy(SSA_initial), deepcopy(PDE_initial), deepcopy(approx_mass_initial))
+                SSA_sum += SSA_current
+                PDE_sum += PDE_current
+                approx_mass_sum += approx_mass_current
+            except MemoryError:
+                print(f"MemoryError encountered on repeat {i+1}, skipping this repeat.")
+                skipped_repeats += 1
+                continue
+            except Exception as e:
+                print(f"Exception on repeat {i+1}: {e}, skipping this repeat.")
+                skipped_repeats += 1
+                continue
+                
 
-
-        SSA_average = SSA_sum / number_of_repeats
-        PDE_average = PDE_sum / number_of_repeats
+        correct_number_of_repeats = number_of_repeats-skipped_repeat
+        SSA_average = SSA_sum / correct_number_of_repeats 
+        PDE_average = PDE_sum / correct_number_of_repeats
 
         combined_grid = np.zeros_like(PDE_average)
         for i in range(SSA_average.shape[1]):
