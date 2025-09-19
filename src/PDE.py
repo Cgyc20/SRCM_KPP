@@ -40,11 +40,15 @@ class PDE:
         """The RHS, i.e., du/dt approximation"""
         dudt = np.zeros_like(old_vector)
         nabla = self.DX_NEW
-        dudt = (
-            self.diffusion_rate * (1 / self.deltax) ** 2 * nabla @ old_vector
-            + self.production_rate * old_vector
-            - self.degradation_rate * old_vector ** 2
-        )
+        dudt = np.zeros_like(old_vector)
+        # Internal points
+        dudt[1:-1] = self.diffusion_rate * (old_vector[2:] - 2*old_vector[1:-1] + old_vector[:-2]) / self.deltax**2
+        # Neumann boundary conditions
+        dudt[0] = self.diffusion_rate * (old_vector[1] - old_vector[0]) / self.deltax**2
+        dudt[-1] = self.diffusion_rate * (old_vector[-2] - old_vector[-1]) / self.deltax**2
+        # Add production and degradation
+        dudt += self.production_rate * old_vector - self.degradation_rate * old_vector**2
+
         return dudt
 
     def RK4(self, old_vector):
@@ -56,7 +60,7 @@ class PDE:
         return old_vector + self.timestep * (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
     def run_simulation(self):
-        for i in tqdm(range(len(self.time_vector) - 1), desc="Running PDE simulation"):
+        for i in range(len(self.time_vector) - 1):
             self.PDE_grid[:, i + 1] = self.RK4(self.PDE_grid[:, i])
         print("Simulation completed")
         return self.PDE_grid
