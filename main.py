@@ -8,12 +8,12 @@ def main():
     PDE_multiple = 8
     total_time = 10
     timestep = 0.005
-    particles_per_compartment_thresh = 50
+    particles_per_compartment_thresh = 100
     gamma = 1
     production_rate = 10
     degradation_rate = 0.01
-    number_particles_per_cell = 10
-    repeats = 50
+    number_particles_per_cell = 100
+    repeats = 500
     diffusion_rate = 1e-2
 
 
@@ -26,13 +26,12 @@ def main():
     # Initial SSA values
     # Initialize all mass in the leftmost compartment
     SSA_initial = np.zeros(compartment_number, dtype=int)
-    SSA_initial[0] = number_particles_per_cell  # All particles in the first compartment
+    SSA_initial[0:5] = number_particles_per_cell
 
     # Initial PDE values
     PDE_points = compartment_number * PDE_multiple
-    PDE_initial = np.zeros(PDE_points)  # Initialize PDE grid with zeros
-    PDE_initial[:PDE_multiple] = number_particles_per_cell/h  # Set the first PDE compartment with the initial number of particles
-
+    PDE_initial = np.zeros(PDE_points)
+    PDE_initial[:5*PDE_multiple] = number_particles_per_cell / h
     # Input dictionary
     input_params = {
         'domain_length': domain_length,
@@ -53,12 +52,12 @@ def main():
         'PDE_initial': PDE_initial
     }
 
-    # Create an instance of the Hybrid class
-    hybrid_model = Hybrid(input_params, use_stochastic_init=False)
+    # # Create an instance of the Hybrid class
+    # hybrid_model = Hybrid(input_params, use_stochastic_init=False)
 
     # Create two instances of the SSA class
     SSA_model_1 = SSA(input_params)
-    SSA_model_2 = SSA(input_params)
+    # SSA_model_2 = SSA(input_params)
 
     # Create an instance of the PDE class
     PDE_model = PDE(input_params)
@@ -66,21 +65,21 @@ def main():
     Naive_hybrid_model = Naive_Hybrid(input_params)
 
     # Run the simulations
-    SSA_average, PDE_average, combined_grid = hybrid_model.run_simulation(repeats)
+    # SSA_average, PDE_average, combined_grid = hybrid_model.run_simulation(repeats)
    
     # SSA_average_naive, PDE_average_naive, combined_grid_naive = Naive_hybrid_model.run_simulation(repeats)
     pure_SSA_average_1 = SSA_model_1.run_simulation(repeats)
-    pure_SSA_average_2 = SSA_model_2.run_simulation(repeats)
+    # pure_SSA_average_2 = SSA_model_2.run_simulation(repeats)
     PDE_results = PDE_model.run_simulation()
 
     # Save the simulation data
-    hybrid_model.save_simulation_data(
-        SSA_grid=SSA_average,
-        PDE_grid=PDE_average,
-        combined_grid=combined_grid,
-        filename="Hybrid_data.npz",
-        datadirectory='simulation_data'
-    )
+    # hybrid_model.save_simulation_data(
+    #     SSA_grid=SSA_average,
+    #     PDE_grid=PDE_average,
+    #     combined_grid=combined_grid,
+    #     filename="Hybrid_data.npz",
+    #     datadirectory='simulation_data'
+    # )
 
     # Save the first SSA simulation
     SSA_model_1.save_simulation_data(
@@ -90,11 +89,11 @@ def main():
     )
 
     # Save the second SSA simulation
-    SSA_model_2.save_simulation_data(
-        filled_SSA_grid=pure_SSA_average_2,
-        filename="Pure_SSA_data_2.npz",
-        datadirectory='simulation_data',
-    )
+    # SSA_model_2.save_simulation_data(
+    #     filled_SSA_grid=pure_SSA_average_2,
+    #     filename="Pure_SSA_data_2.npz",
+    #     datadirectory='simulation_data',
+    # )
 
     # Save the PDE simulation
     PDE_model.save_simulation_data(
