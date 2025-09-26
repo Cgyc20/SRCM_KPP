@@ -226,7 +226,7 @@ class Hybrid:
                 skipped_repeats += 1
                 continue
                 
-
+        
         correct_number_of_repeats = number_of_repeats-skipped_repeat
         SSA_average = SSA_sum / correct_number_of_repeats 
         PDE_average = PDE_sum / correct_number_of_repeats
