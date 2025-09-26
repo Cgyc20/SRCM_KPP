@@ -32,7 +32,7 @@ def main():
     PDE_initial[:5*PDE_multiple] = number_particles_per_cell / h
 
     # Loop over threshold values
-    threshold_values = list(range(10, 90, 10))
+    threshold_values = list(range(80, 90, 10))
 
     timings = []  # store timings for each threshold
 
